@@ -230,8 +230,11 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
 .ob.ok{border-color:rgba(78,205,160,.45);background:rgba(78,205,160,.12);
   color:#5dd4a8;font-weight:600}
 .ob.ng{border-color:rgba(232,80,80,.45);background:rgba(232,80,80,.12);color:#f07070}
-.fb{padding:10px 12px;border-radius:9px;font-size:12px;display:flex;
-  align-items:flex-start;gap:9px;line-height:1.45;animation:fb-in .2s ease}
+.fb{padding:10px 12px;border-radius:9px;font-size:12px;
+  line-height:1.45;animation:fb-in .2s ease;display:flex;flex-direction:column;gap:9px}
+.fb-msg{display:flex;align-items:flex-start;gap:9px}
+.fb-ico{font-size:16px;line-height:1.2;flex-shrink:0}
+.fb-sub{font-size:11px;margin-top:2px;opacity:.85}
 @keyframes fb-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 .fb.ok{background:rgba(78,205,160,.09);border:1px solid rgba(78,205,160,.22);color:#5dd4a8}
 .fb.ng{background:rgba(232,80,80,.09);border:1px solid rgba(232,80,80,.22);color:#f07070}
@@ -286,8 +289,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
   border-bottom:1px solid rgba(255,255,255,.06)}
 .mob-handle-bar{width:36px;height:4px;border-radius:2px;
   background:rgba(255,255,255,.2);margin:0 auto}
-#mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
-  z-index:195;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+#mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.18);
+  z-index:195}
 #mob-overlay.show{display:block}
 
 /* ═══════════ MOBILE ≤768px ═══════════ */
@@ -376,12 +379,25 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
     left:50%!important;transform:translateX(-50%);
     white-space:normal;max-width:240px;text-align:center}
 
-  /* Quiz mode: 50vh panel so map stays visible above */
+  /* Quiz: 50vh panel, compact single-page layout */
   #panel.quiz-mode.mob-open{max-height:50vh}
-  #panel.quiz-mode .qbody{padding:8px 12px;gap:7px}
+  #panel.quiz-mode .mob-handle{padding:6px 0 4px}
+  #panel.quiz-mode .qhdr{padding:7px 14px}
+  #panel.quiz-mode .scn{font-size:13px}
+  #panel.quiz-mode .qbody{padding:8px 12px;gap:6px}
   #panel.quiz-mode .hint{display:none}
-  #panel.quiz-mode .ob{min-height:40px;padding:8px 12px}
-  #panel.quiz-mode .ob.flgo{min-height:50px;font-size:30px}
+  #panel.quiz-mode .qtlbl{display:none}
+  #panel.quiz-mode .qtxt{font-size:12.5px;font-weight:500;line-height:1.35}
+  #panel.quiz-mode .ogrid{gap:5px}
+  #panel.quiz-mode .ob{min-height:36px;padding:6px 12px;font-size:12.5px}
+  #panel.quiz-mode .ob.flgo{min-height:44px;font-size:26px}
+  /* Feedback + next button combined */
+  #panel.quiz-mode .fb{padding:7px 10px;font-size:11.5px;
+    display:flex;flex-direction:column;gap:6px}
+  #panel.quiz-mode .fb-msg{display:flex;gap:8px;align-items:flex-start}
+  #panel.quiz-mode .fb-ico{font-size:14px;line-height:1.3}
+  #panel.quiz-mode .fb-sub{font-size:10.5px;margin-top:1px;opacity:.85}
+  #panel.quiz-mode .nxtb{min-height:38px;font-size:13px;padding:7px;margin:0}
 }
 
 /* Extra small (iPhone SE etc.) */
@@ -780,10 +796,16 @@ function zoomTo(intId){
   if(!bounds||!isFinite(bounds[0][0])) return;
   var bw=bounds[1][0]-bounds[0][0], bh=bounds[1][1]-bounds[0][1];
   var cx=(bounds[0][0]+bounds[1][0])/2, cy=(bounds[0][1]+bounds[1][1])/2;
-  /* 手機測驗時：可見地圖為上半部（下半為答題面板），縮放時就為上半居中 */
-  var visH=(isMob()&&S.q&&S.q.active)?H*0.48:H;
+  /* 手機測驗時：依當前 viewport 動態計算可見地圖區域 */
+  var visH=H, tgtY=H/2;
+  if(isMob() && S.q && S.q.active){
+    var vh=window.innerHeight;
+    var svgTop=vh-H;             /* SVG 上方 header+region bar 高度 */
+    var panelTopVp=vh*0.5;       /* 面板 top（quiz-mode 50vh） */
+    visH=Math.max(160, panelTopVp-svgTop);  /* 可見地圖高度（SVG 座標） */
+    tgtY=visH/2;                 /* 國家居中在可見區內 */
+  }
   var sc=Math.max(1.0,Math.min(40,0.78/Math.max(bw/W,bh/visH)));
-  var tgtY=visH/2;
   var curT=d3.zoomTransform(svgEl.node());
   var viewCx=(W/2-curT.x)/curT.k;
   var n=Math.round((viewCx-cx)/W);
@@ -979,6 +1001,8 @@ function nextQ(fid){
   S.q.qType=types[Math.floor(Math.random()*types.length)];
   var others=pool.filter(function(p){return p.id!==tgt.id;}).sort(function(){return Math.random()-.5;}).slice(0,3);
   S.q.opts=[tgt].concat(others).sort(function(){return Math.random()-.5;});
+  /* 先設 quiz-mode class 讓面板縮到 50vh，zoomTo 才能算出正確的可見區域 */
+  document.getElementById("panel").classList.add("quiz-mode");
   rcolor();zoomTo(tgt.id);renderQ();
 }
 function optTxt(opt,qt){
@@ -1022,15 +1046,17 @@ function handleAns(selId){
   });
   var cd=L(S.q.curId);
   var fb=document.getElementById("fb");
-  fb.style.display="flex"; fb.className="fb "+(ok?"ok":"ng");
+  fb.style.display="block"; fb.className="fb fb-wrap "+(ok?"ok":"ng");
+  var msgH;
   if(ok){
-    fb.innerHTML='<span style="font-size:16px">✅</span><div><div style="font-weight:600">答對了！</div>'
-      +'<div style="font-size:11px;margin-top:2px">首都：'+cd[3]+'　語言：'+cd[4][0]+'</div></div>';
+    msgH='<div class="fb-msg"><span class="fb-ico">✅</span>'
+      +'<div><b>答對了！</b><div class="fb-sub">首都：'+cd[3]+'　語言：'+cd[4][0]+'</div></div></div>';
   }else{
-    fb.innerHTML='<span style="font-size:16px">❌</span><div><div style="font-weight:600">答錯了</div>'
-      +'<div style="font-size:11px;margin-top:2px">正確答案：'+cd[2]+' '+cd[0]+'（首都：'+cd[3]+'）</div></div>';
+    msgH='<div class="fb-msg"><span class="fb-ico">❌</span>'
+      +'<div><b>正解：'+cd[2]+' '+cd[0]+'</b><div class="fb-sub">首都：'+cd[3]+'</div></div></div>';
   }
-  fb.insertAdjacentHTML("afterend",'<button class="nxtb" onclick="nextQ()">下一題 →</button>');
+  /* feedback 與 next 按鈕在同一容器，不再 insertAdjacentHTML 避免溢出 */
+  fb.innerHTML=msgH+'<button class="nxtb" onclick="nextQ()">下一題 →</button>';
 }
 function quitQuiz(){
   var q=S.q;S.q.active=false;rcolor();resetZoom();
@@ -1067,7 +1093,9 @@ function quitQuiz(){
 async function initMap(){
   var wrap=document.getElementById("mwrap");
   W=wrap.clientWidth||800; H=wrap.clientHeight||500;
-  svgEl=d3.select("#msvg");
+  svgEl=d3.select("#msvg")
+    .attr("viewBox","0 0 "+W+" "+H)
+    .attr("preserveAspectRatio","xMidYMid slice");
 
   proj=d3.geoMercator()
     .scale(W/(2*Math.PI)).translate([W/2,H/2+60]);
@@ -1080,12 +1108,15 @@ async function initMap(){
   zbeh=d3.zoom()
     .scaleExtent([1,50])
     .extent([[0,0],[W,H]])
-    /* constrain: hard-clamp vertical movement.
-       At scale k the world is k*H px tall. Keep it inside viewport.
-       tol=80 handles Mercator pole clipping & projection offset.    */
+    /* constrain: device-aware vertical clamp.
+       Desktop: 30% tolerance (matches original translateExtent behavior)
+       Mobile: 10% tolerance (prevents touch gesture overflow)         */
     .constrain(function(t){
-      var k=t.k, tol=80;
-      var ty=Math.max(H*(1-k)-tol, Math.min(tol, t.y));
+      var k=t.k, mob=window.innerWidth<=768;
+      var tolPct=mob?0.10:0.30;
+      var minTy=H*(1-k*(1+tolPct));
+      var maxTy=k*H*tolPct;
+      var ty=Math.max(minTy, Math.min(maxTy, t.y));
       return d3.zoomIdentity.translate(t.x, ty).scale(k);
     })
     .on("zoom",function(e){
