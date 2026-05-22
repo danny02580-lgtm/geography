@@ -7,148 +7,279 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
 <style>
+/* ═══════════ RESET & BASE ═══════════ */
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0c1622;color:#e8e0d0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
-/* ── Header ── */
-header{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;background:linear-gradient(90deg,#182540,#1c2e4a);border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0}
-.logo{font-size:15px;font-weight:700;color:#e8c870;display:flex;align-items:center;gap:8px}
-.logo span{font-size:11px;font-weight:400;color:#5a8aaa}
-.tabs{display:flex;background:rgba(0,0,0,.25);border-radius:10px;padding:3px;gap:2px;border:1px solid rgba(255,255,255,.06)}
-.tab{padding:6px 16px;border-radius:7px;border:none;background:transparent;color:#5a8aaa;font-size:13px;cursor:pointer;font-family:inherit;transition:all .25s}
-.tab.on{background:linear-gradient(135deg,#d4a340,#c48840);color:#0c1622;font-weight:700;box-shadow:0 2px 10px rgba(200,144,80,.45)}
-/* ── Region bar ── */
-.rbar{display:flex;align-items:center;gap:5px;padding:7px 18px;background:#101e30;border-bottom:1px solid rgba(255,255,255,.07);overflow-x:auto;flex-shrink:0}
-.rp{padding:4px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.09);background:transparent;color:#5a8aaa;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .2s}
-.rp.on{border-color:#c89050;color:#f0d090;background:rgba(200,144,80,.12)}
-.rp:hover:not(.on){border-color:rgba(255,255,255,.2);color:#e8e0d0}
-.cnt{margin-left:auto;font-size:10px;color:#3a5a78;padding:2px 8px;border:1px solid rgba(255,255,255,.07);border-radius:10px;white-space:nowrap;flex-shrink:0}
-/* ── Map ── */
+body{font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",system-ui,-apple-system,sans-serif;
+  background:#0c1622;color:#e8e0d0;height:100vh;display:flex;flex-direction:column;
+  overflow:hidden;-webkit-font-smoothing:antialiased;text-rendering:optimizeLegibility}
+
+/* ═══════════ HEADER ═══════════ */
+header{display:flex;align-items:center;justify-content:space-between;padding:0 20px;
+  height:50px;flex-shrink:0;
+  background:linear-gradient(90deg,#131f35 0%,#172840 100%);
+  border-bottom:1px solid rgba(255,255,255,.07);
+  box-shadow:0 2px 12px rgba(0,0,0,.35)}
+.logo{font-size:14px;font-weight:700;color:#e8c870;display:flex;align-items:center;gap:8px;
+  letter-spacing:.02em}
+.logo span{font-size:11px;font-weight:400;color:#4a7a9a;letter-spacing:.5px}
+.tabs{display:flex;background:rgba(0,0,0,.28);border-radius:10px;padding:3px;gap:2px;
+  border:1px solid rgba(255,255,255,.06)}
+.tab{padding:6px 18px;border-radius:7px;border:none;background:transparent;color:#4a7a9a;
+  font-size:12px;cursor:pointer;font-family:inherit;transition:all .22s;letter-spacing:.02em}
+.tab.on{background:linear-gradient(135deg,#d4a340,#c48840);color:#0c1622;
+  font-weight:700;box-shadow:0 2px 10px rgba(200,144,80,.45);letter-spacing:0}
+
+/* ═══════════ REGION BAR ═══════════ */
+.rbar{display:flex;align-items:center;gap:5px;padding:6px 18px;
+  background:#0f1a2a;border-bottom:1px solid rgba(255,255,255,.06);
+  overflow-x:auto;flex-shrink:0;scrollbar-width:none}
+.rbar::-webkit-scrollbar{display:none}
+.rp{padding:4px 13px;border-radius:20px;border:1px solid rgba(255,255,255,.09);
+  background:transparent;color:#4a7a9a;font-size:11px;cursor:pointer;
+  font-family:inherit;white-space:nowrap;transition:all .18s;letter-spacing:.01em}
+.rp.on{border-color:#c89050;color:#f0d090;background:rgba(200,144,80,.13);
+  box-shadow:0 0 8px rgba(200,144,80,.2)}
+.rp:hover:not(.on){border-color:rgba(255,255,255,.22);color:#c8d8e8;
+  background:rgba(255,255,255,.04)}
+.cnt{margin-left:auto;font-size:10px;color:#304a60;padding:3px 10px;
+  border:1px solid rgba(255,255,255,.07);border-radius:12px;
+  white-space:nowrap;flex-shrink:0;letter-spacing:.02em}
+
+/* ═══════════ MAIN LAYOUT ═══════════ */
 .main{display:flex;flex:1;overflow:hidden}
-#mwrap{flex:1;position:relative;overflow:hidden;background:#183858;cursor:grab}
+
+/* ═══════════ MAP ═══════════ */
+#mwrap{flex:1;position:relative;overflow:hidden;background:#162e48;cursor:grab}
 #mwrap:active{cursor:grabbing}
 #msvg{width:100%;height:100%;display:block}
-/* 紅色虛線：hover 和 sel 均使用虛線，vector-effect 保持固定螢幕像素 */
-.cp{stroke:none;cursor:pointer;transition:opacity .3s,filter .15s;vector-effect:non-scaling-stroke}
-.cp.hov{stroke:#e84040;stroke-width:1.8;stroke-dasharray:5 3;filter:brightness(1.2)}
-.cp.sel{stroke:#ff3030;stroke-width:2;stroke-dasharray:6 3}
-.cp.hl{stroke:#ff7030;stroke-width:2.2}
-.cp.dim{opacity:.12}
-/* ── Tooltip ── */
-#tip{position:absolute;background:rgba(12,22,36,.96);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:8px 14px;font-size:12px;color:#e8e0d0;pointer-events:none;opacity:0;transition:opacity .12s;z-index:50;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.03);backdrop-filter:blur(8px)}
-/* ── Map buttons ── */
-.map-btns{position:absolute;bottom:14px;left:14px;z-index:40;display:flex;gap:6px}
-.mapbtn{background:rgba(10,20,34,.9);border:1px solid rgba(255,255,255,.14);color:#7aaac8;font-size:11px;padding:6px 13px;border-radius:20px;cursor:pointer;font-family:inherit;transition:all .2s;backdrop-filter:blur(8px);box-shadow:0 2px 10px rgba(0,0,0,.45)}
-.mapbtn:hover{color:#e8e0d0;border-color:rgba(255,255,255,.28);background:rgba(20,38,60,.92)}
-.mapbtn.off{opacity:.45;color:#3a5a78}
-/* ── Panel ── */
-#panel{width:300px;flex-shrink:0;border-left:1px solid rgba(255,255,255,.07);background:#111e2e;display:flex;flex-direction:column;overflow:hidden}
-.ptabs{display:flex;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;background:#172538}
-.ptab{flex:1;padding:10px 6px;border:none;border-bottom:2px solid transparent;background:transparent;color:#5a8aaa;font-size:12px;cursor:pointer;font-family:inherit;transition:all .2s}
+.cp{stroke:none;cursor:pointer;transition:filter .15s;vector-effect:non-scaling-stroke}
+.cp.hov{stroke:#e84040;stroke-width:1;stroke-dasharray:4 3;filter:brightness(1.18)}
+.cp.sel{stroke:#ff3030;stroke-width:1.2;stroke-dasharray:5 3}
+.cp.hl{stroke:#ff7030;stroke-width:1.6}
+.cp.dim{opacity:.11}
+
+/* ═══════════ TOOLTIP ═══════════ */
+#tip{position:absolute;background:rgba(10,20,36,.96);border:1px solid rgba(255,255,255,.14);
+  border-radius:10px;padding:8px 14px;font-size:12px;color:#e8e0d0;pointer-events:none;
+  opacity:0;transition:opacity .1s;z-index:50;white-space:nowrap;
+  box-shadow:0 4px 20px rgba(0,0,0,.6);backdrop-filter:blur(10px)}
+
+/* ═══════════ LAYERS PANEL ═══════════ */
+#layers-wrap{position:absolute;top:12px;left:12px;z-index:40;
+  background:rgba(8,16,28,.92);border:1px solid rgba(255,255,255,.12);
+  border-radius:11px;padding:10px 11px;backdrop-filter:blur(12px);
+  display:flex;flex-direction:column;gap:5px;min-width:118px;
+  box-shadow:0 4px 20px rgba(0,0,0,.5),inset 0 1px 0 rgba(255,255,255,.05)}
+.lw-top{display:flex;align-items:center;justify-content:space-between;
+  margin-bottom:3px;padding-bottom:7px;
+  border-bottom:1px solid rgba(255,255,255,.07)}
+.ltitle{font-size:10px;color:#3a6a8a;text-transform:uppercase;letter-spacing:1px;
+  font-weight:600}
+.lbtn-sm{width:26px;height:26px;border-radius:7px;
+  border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.05);
+  color:#7aaac8;font-size:13px;cursor:pointer;transition:all .18s;
+  display:flex;align-items:center;justify-content:center}
+.lbtn-sm:hover{color:#e8e0d0;border-color:rgba(255,255,255,.28);
+  background:rgba(255,255,255,.1)}
+.lbtn{padding:5px 10px;border-radius:7px;border:1px solid rgba(255,255,255,.08);
+  background:transparent;color:#3a6a8a;font-size:11px;cursor:pointer;
+  font-family:inherit;text-align:left;transition:all .18s;white-space:nowrap;
+  letter-spacing:.01em}
+.lbtn.on{border-color:rgba(90,160,230,.45);color:#80c0f0;
+  background:rgba(90,160,230,.12);box-shadow:0 0 8px rgba(90,160,230,.1)}
+.lbtn:hover:not(.on){color:#c8d8e8;border-color:rgba(255,255,255,.2);
+  background:rgba(255,255,255,.05)}
+
+/* ═══════════ RIGHT PANEL ═══════════ */
+#panel{width:300px;flex-shrink:0;border-left:1px solid rgba(255,255,255,.07);
+  background:#111e2e;display:flex;flex-direction:column;overflow:hidden}
+.ptabs{display:flex;border-bottom:1px solid rgba(255,255,255,.07);
+  flex-shrink:0;background:#162030}
+.ptab{flex:1;padding:10px 6px;border:none;border-bottom:2px solid transparent;
+  background:transparent;color:#4a7a9a;font-size:12px;cursor:pointer;
+  font-family:inherit;transition:all .2s;letter-spacing:.01em}
 .ptab.on{color:#f0d090;border-bottom-color:#c89050}
-.ptab:hover:not(.on){color:#e8e0d0}
-/* ── Loading ── */
-.ldg{display:flex;flex-direction:column;align-items:center;justify-content:center;position:absolute;inset:0;gap:14px;color:#5a8aaa;font-size:13px;background:#183858;z-index:30}
-.spin{width:32px;height:32px;border:2.5px solid rgba(255,255,255,.1);border-top-color:#c89050;border-radius:50%;animation:sp .7s linear infinite}
+.ptab:hover:not(.on){color:#c8d8e8;background:rgba(255,255,255,.03)}
+
+/* ─ Loading ─ */
+.ldg{display:flex;flex-direction:column;align-items:center;justify-content:center;
+  position:absolute;inset:0;gap:14px;color:#4a7a9a;font-size:13px;
+  background:#162e48;z-index:30}
+.spin{width:32px;height:32px;border:2.5px solid rgba(255,255,255,.1);
+  border-top-color:#c89050;border-radius:50%;animation:sp .7s linear infinite}
 @keyframes sp{to{transform:rotate(360deg)}}
-/* ── Empty state ── */
-.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center;color:#3a5a78}
-.empty .ico{font-size:40px;opacity:.28}
-.empty p{font-size:13px;line-height:1.65}
-/* ── Country info card ── */
-.info{flex:1;overflow-y:auto;display:flex;flex-direction:column;animation:si .22s ease}
+
+/* ─ Empty state ─ */
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:12px;padding:28px;text-align:center;color:#304a60}
+.empty .ico{font-size:42px;opacity:.25}
+.empty p{font-size:12.5px;line-height:1.7;color:#3a5a78}
+
+/* ─ Country info ─ */
+.info{flex:1;overflow-y:auto;display:flex;flex-direction:column;
+  animation:si .2s ease}
 @keyframes si{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
-.info-hero{padding:20px 16px 14px;text-align:center;background:linear-gradient(180deg,#1e3252 0%,#111e2e 100%)}
-.flag-big{font-size:62px;line-height:1;margin-bottom:10px;filter:drop-shadow(0 4px 16px rgba(0,0,0,.55))}
-.name-zh{font-size:22px;font-weight:700;color:#f0d090;margin-bottom:3px}
-.name-en{font-size:11px;color:#5a8aaa;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px}
-.rgn-badge{display:inline-flex;align-items:center;padding:3px 12px;border-radius:12px;font-size:11px;font-weight:600}
-.info-body{padding:14px 16px;display:flex;flex-direction:column;gap:14px;flex:1}
+.info-hero{padding:22px 16px 16px;text-align:center;
+  background:linear-gradient(180deg,#1a3050 0%,#111e2e 100%)}
+.flag-big{font-size:60px;line-height:1;margin-bottom:12px;
+  filter:drop-shadow(0 4px 16px rgba(0,0,0,.55))}
+.name-zh{font-size:21px;font-weight:700;color:#f0d090;margin-bottom:3px;
+  letter-spacing:.02em}
+.name-en{font-size:10px;color:#4a7a9a;letter-spacing:2px;text-transform:uppercase;
+  margin-bottom:11px}
+.rgn-badge{display:inline-flex;align-items:center;padding:3px 13px;
+  border-radius:12px;font-size:11px;font-weight:600;letter-spacing:.02em}
+.info-body{padding:14px 16px;display:flex;flex-direction:column;gap:13px;flex:1}
 .info-row{display:flex;gap:12px;align-items:flex-start}
-.info-ico{font-size:16px;width:22px;flex-shrink:0;margin-top:1px}
-.info-lbl{font-size:10px;color:#3a5a78;text-transform:uppercase;letter-spacing:.9px;margin-bottom:3px}
-.info-val{font-size:14px;color:#e8e0d0;font-weight:500}
+.info-ico{font-size:15px;width:22px;flex-shrink:0;margin-top:1px}
+.info-lbl{font-size:9.5px;color:#304a60;text-transform:uppercase;
+  letter-spacing:.8px;margin-bottom:3px}
+.info-val{font-size:13.5px;color:#e8e0d0;font-weight:500}
 .ltags{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
-.lt{font-size:11px;padding:3px 10px;border-radius:10px;border:1px solid rgba(200,144,80,.28);color:#d4a840;background:rgba(200,144,80,.1)}
-.dvd{height:1px;background:rgba(255,255,255,.07)}
+.lt{font-size:11px;padding:3px 10px;border-radius:10px;
+  border:1px solid rgba(200,144,80,.28);color:#d4a840;
+  background:rgba(200,144,80,.09)}
+.dvd{height:1px;background:rgba(255,255,255,.06)}
 .info-footer{padding:12px 16px 16px}
-.quiz-here-btn{width:100%;padding:10px;border-radius:9px;border:1px solid rgba(200,144,80,.28);background:rgba(200,144,80,.07);color:#d4a840;font-size:12px;cursor:pointer;font-family:inherit;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:7px}
-.quiz-here-btn:hover{background:rgba(200,144,80,.18);border-color:rgba(200,144,80,.5);color:#f0c060}
-.backb{display:inline-flex;align-items:center;gap:5px;background:transparent;border:1px solid rgba(255,255,255,.1);color:#5a8aaa;font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;font-family:inherit;transition:all .2s;margin-bottom:4px}
-.backb:hover{color:#e8e0d0;border-color:rgba(255,255,255,.2)}
-/* ── List ── */
+.quiz-here-btn{width:100%;padding:9px;border-radius:9px;
+  border:1px solid rgba(200,144,80,.28);background:rgba(200,144,80,.07);
+  color:#d4a840;font-size:12px;cursor:pointer;font-family:inherit;
+  transition:all .2s;display:flex;align-items:center;justify-content:center;gap:7px}
+.quiz-here-btn:hover{background:rgba(200,144,80,.18);border-color:rgba(200,144,80,.5);
+  color:#f0c060;transform:translateY(-1px)}
+.backb{display:inline-flex;align-items:center;gap:5px;background:transparent;
+  border:1px solid rgba(255,255,255,.1);color:#4a7a9a;font-size:11px;
+  padding:4px 10px;border-radius:6px;cursor:pointer;font-family:inherit;
+  transition:all .18s;margin-bottom:6px}
+.backb:hover{color:#e8e0d0;border-color:rgba(255,255,255,.22)}
+
+/* ─ Country list ─ */
 .list-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
 .sinp-wrap{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0}
-.sinp{width:100%;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#e8e0d0;font-size:12px;font-family:inherit;outline:none;transition:all .2s}
-.sinp::placeholder{color:#3a5a78}
+.sinp{width:100%;padding:8px 12px;border-radius:8px;
+  border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);
+  color:#e8e0d0;font-size:12px;font-family:inherit;outline:none;
+  transition:all .2s}
+.sinp::placeholder{color:#304a60}
 .sinp:focus{border-color:#c89050;box-shadow:0 0 0 3px rgba(200,144,80,.12)}
 .clist{flex:1;overflow-y:auto;padding:5px}
-.cli{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .12s}
+.cli{display:flex;align-items:center;gap:10px;padding:8px 10px;
+  border-radius:8px;cursor:pointer;transition:background .12s}
 .cli:hover{background:rgba(255,255,255,.06)}
 .cli-fl{font-size:22px;flex-shrink:0;line-height:1}
 .cli-tx{flex:1;min-width:0}
 .cli-nm{font-size:13px;font-weight:500;color:#e8e0d0}
-.cli-sb{font-size:11px;color:#3a5a78;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-.cli-ar{color:#2a4a60;flex-shrink:0;font-size:14px}
-/* ── Quiz setup ── */
+.cli-sb{font-size:11px;color:#304a60;margin-top:1px;
+  overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cli-ar{color:#263a50;flex-shrink:0;font-size:14px}
+
+/* ─ Quiz setup ─ */
 .qsetup{flex:1;padding:16px;display:flex;flex-direction:column;gap:14px;overflow-y:auto}
-.qsetup-title{font-size:15px;font-weight:700;color:#f0d090}
-.slbl{font-size:10px;color:#3a5a78;text-transform:uppercase;letter-spacing:.9px;margin-bottom:7px}
+.qsetup-title{font-size:15px;font-weight:700;color:#f0d090;letter-spacing:.02em}
+.slbl{font-size:9.5px;color:#304a60;text-transform:uppercase;
+  letter-spacing:.9px;margin-bottom:6px;font-weight:600}
 .sopts{display:flex;flex-direction:column;gap:5px}
-.so{padding:9px 13px;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:rgba(255,255,255,.03);color:#5a8aaa;font-size:12px;cursor:pointer;font-family:inherit;text-align:left;display:flex;align-items:center;gap:9px;transition:all .15s}
-.so.pk{border-color:rgba(74,158,232,.45);color:#88c8f8;background:rgba(74,158,232,.1);box-shadow:0 0 0 1px rgba(74,158,232,.18)}
-.so:hover:not(.pk){border-color:rgba(255,255,255,.16);color:#e8e0d0;background:rgba(255,255,255,.05)}
-.startb{padding:11px;border-radius:9px;border:none;background:linear-gradient(135deg,#d4a340,#c48840);color:#0c1622;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:auto;transition:all .2s;box-shadow:0 4px 16px rgba(200,144,80,.35)}
+.so{padding:9px 13px;border:1px solid rgba(255,255,255,.08);border-radius:9px;
+  background:rgba(255,255,255,.03);color:#4a7a9a;font-size:12px;cursor:pointer;
+  font-family:inherit;text-align:left;display:flex;align-items:center;gap:9px;
+  transition:all .15s}
+.so.pk{border-color:rgba(74,158,232,.45);color:#88c8f8;
+  background:rgba(74,158,232,.1);box-shadow:0 0 0 1px rgba(74,158,232,.18)}
+.so:hover:not(.pk){border-color:rgba(255,255,255,.18);color:#c8d8e8;
+  background:rgba(255,255,255,.05)}
+.startb{padding:11px;border-radius:9px;border:none;
+  background:linear-gradient(135deg,#d4a340,#c48840);color:#0c1622;
+  font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;
+  margin-top:auto;transition:all .2s;
+  box-shadow:0 4px 16px rgba(200,144,80,.35)}
 .startb:hover{box-shadow:0 6px 22px rgba(200,144,80,.55);transform:translateY(-1px)}
 .startb:active{transform:translateY(0)}
-/* ── Quiz question ── */
-.qhdr{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#172538}
-.sc{font-size:12px;color:#5a8aaa}
+
+/* ─ Quiz question ─ */
+.qhdr{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.07);
+  display:flex;align-items:center;justify-content:space-between;
+  flex-shrink:0;background:#162030}
+.sc{font-size:11px;color:#4a7a9a}
 .scn{font-weight:700;color:#e8e0d0;font-size:14px}
-.strk{font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(255,200,60,.14);color:#ffcc3c;border:1px solid rgba(255,200,60,.2)}
-.quitb{border:1px solid rgba(255,255,255,.1);background:transparent;color:#5a8aaa;font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;font-family:inherit;transition:all .2s}
+.strk{font-size:11px;padding:2px 9px;border-radius:10px;
+  background:rgba(255,200,60,.14);color:#ffcc3c;
+  border:1px solid rgba(255,200,60,.2)}
+.quitb{border:1px solid rgba(255,255,255,.1);background:transparent;
+  color:#4a7a9a;font-size:11px;padding:4px 10px;border-radius:6px;
+  cursor:pointer;font-family:inherit;transition:all .18s}
 .quitb:hover{color:#f07070;border-color:rgba(240,112,112,.3)}
 .pgbar{height:3px;background:rgba(255,255,255,.06);flex-shrink:0}
-.pgfill{height:100%;background:linear-gradient(90deg,#c89050,#f0c060);transition:width .5s cubic-bezier(.4,0,.2,1);box-shadow:0 0 8px rgba(200,144,80,.55)}
+.pgfill{height:100%;background:linear-gradient(90deg,#c89050,#f0c060);
+  transition:width .55s cubic-bezier(.4,0,.2,1);
+  box-shadow:0 0 8px rgba(200,144,80,.5)}
 .qbody{flex:1;padding:14px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
-.qtlbl{font-size:10px;color:#3a5a78;text-transform:uppercase;letter-spacing:.9px}
+.qtlbl{font-size:9.5px;color:#304a60;text-transform:uppercase;letter-spacing:.9px;
+  font-weight:600}
 .qtxt{font-size:14px;font-weight:600;color:#e8e0d0;line-height:1.45}
-.hint{font-size:11px;color:#d48830;display:flex;align-items:center;gap:5px;padding:6px 9px;background:rgba(212,136,48,.08);border-radius:7px;border:1px solid rgba(212,136,48,.18)}
+.hint{font-size:11px;color:#d48830;display:flex;align-items:center;gap:5px;
+  padding:6px 9px;background:rgba(212,136,48,.08);border-radius:7px;
+  border:1px solid rgba(212,136,48,.18)}
 .ogrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;align-content:start}
-.ob{padding:10px 8px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:rgba(255,255,255,.04);color:#e8e0d0;font-family:inherit;font-size:12px;cursor:pointer;text-align:center;line-height:1.35;transition:all .15s}
-.ob:hover:not(:disabled){border-color:rgba(200,144,80,.45);color:#f0d090;background:rgba(200,144,80,.12);box-shadow:0 0 0 1px rgba(200,144,80,.18)}
-.ob.flgo{font-size:30px;padding:13px 8px}
-.ob.ok{border-color:rgba(78,205,160,.45);background:rgba(78,205,160,.11);color:#5dd4a8;font-weight:600;box-shadow:0 0 0 1px rgba(78,205,160,.18)}
-.ob.ng{border-color:rgba(232,80,80,.45);background:rgba(232,80,80,.11);color:#f07070}
-.fb{padding:10px 12px;border-radius:9px;font-size:12px;display:flex;align-items:flex-start;gap:9px;line-height:1.45;animation:fb-in .2s ease}
+.ob{padding:10px 8px;border:1px solid rgba(255,255,255,.1);border-radius:9px;
+  background:rgba(255,255,255,.04);color:#e8e0d0;font-family:inherit;
+  font-size:12px;cursor:pointer;text-align:center;line-height:1.35;
+  transition:all .15s;word-break:break-word}
+.ob:hover:not(:disabled){border-color:rgba(200,144,80,.45);color:#f0d090;
+  background:rgba(200,144,80,.12)}
+.ob.flgo{font-size:28px;padding:12px 8px}
+.ob.ok{border-color:rgba(78,205,160,.45);background:rgba(78,205,160,.12);
+  color:#5dd4a8;font-weight:600}
+.ob.ng{border-color:rgba(232,80,80,.45);background:rgba(232,80,80,.12);color:#f07070}
+.fb{padding:10px 12px;border-radius:9px;font-size:12px;display:flex;
+  align-items:flex-start;gap:9px;line-height:1.45;animation:fb-in .2s ease}
 @keyframes fb-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 .fb.ok{background:rgba(78,205,160,.09);border:1px solid rgba(78,205,160,.22);color:#5dd4a8}
 .fb.ng{background:rgba(232,80,80,.09);border:1px solid rgba(232,80,80,.22);color:#f07070}
-.nxtb{padding:9px;border:1px solid rgba(255,255,255,.12);border-radius:9px;background:rgba(255,255,255,.04);color:#e8e0d0;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;width:100%;display:flex;align-items:center;justify-content:center;gap:6px}
+.nxtb{padding:9px;border:1px solid rgba(255,255,255,.12);border-radius:9px;
+  background:rgba(255,255,255,.04);color:#e8e0d0;font-size:12px;font-weight:600;
+  cursor:pointer;font-family:inherit;transition:all .2s;width:100%;
+  display:flex;align-items:center;justify-content:center;gap:6px}
 .nxtb:hover{background:rgba(200,144,80,.12);border-color:rgba(200,144,80,.4);color:#f0d090}
-/* ── Result ── */
-.rspanel{flex:1;padding:24px 18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
-.rsico{font-size:50px;animation:pop .4s cubic-bezier(.34,1.56,.64,1)}
+
+/* ─ Quiz result ─ */
+.rspanel{flex:1;padding:24px 18px;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:12px;text-align:center}
+.rsico{font-size:52px;animation:pop .4s cubic-bezier(.34,1.56,.64,1)}
 @keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
 .rsscore{font-size:34px;font-weight:700;color:#f0d090}
-.rspct{font-size:13px;color:#5a8aaa}
-.rsmsg{font-size:14px;color:#e8e0d0;line-height:1.5}
+.rspct{font-size:13px;color:#4a7a9a}
+.rsmsg{font-size:13.5px;color:#e8e0d0;line-height:1.55}
 .actbtns{display:flex;flex-direction:column;gap:8px;width:100%;margin-top:10px}
-.ab{padding:10px;border-radius:9px;font-size:13px;cursor:pointer;font-family:inherit;transition:all .2s;width:100%}
-.ab.prim{background:linear-gradient(135deg,#d4a340,#c48840);border:none;color:#0c1622;font-weight:700;box-shadow:0 3px 12px rgba(200,144,80,.3)}
+.ab{padding:10px;border-radius:9px;font-size:13px;cursor:pointer;
+  font-family:inherit;transition:all .2s;width:100%;letter-spacing:.01em}
+.ab.prim{background:linear-gradient(135deg,#d4a340,#c48840);border:none;
+  color:#0c1622;font-weight:700;box-shadow:0 3px 12px rgba(200,144,80,.3)}
 .ab.prim:hover{box-shadow:0 5px 18px rgba(200,144,80,.5);transform:translateY(-1px)}
-.ab.sec{background:transparent;border:1px solid rgba(255,255,255,.1);color:#5a8aaa}
-.ab.sec:hover{color:#e8e0d0;border-color:rgba(255,255,255,.2)}
-/* ── Labels ── */
-.lb{fill:#fff;stroke:rgba(8,18,35,.95);stroke-width:2.8;paint-order:stroke;font-weight:600;font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;pointer-events:none}
-.lb.dim{opacity:.12}
-.wlbl{font-style:italic;paint-order:stroke;stroke:rgba(10,28,55,.88);stroke-width:2.5;pointer-events:none;font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;font-weight:300}
-.wlbl-ocean{fill:rgba(155,198,232,.82);letter-spacing:3px;font-size:15px}
-.wlbl-sea{fill:rgba(140,188,225,.78);letter-spacing:1.5px}
-.wlbl-lake{fill:rgba(130,180,220,.75);letter-spacing:.5px;font-style:normal;font-weight:400}
-::-webkit-scrollbar{width:4px}
+.ab.sec{background:transparent;border:1px solid rgba(255,255,255,.1);color:#4a7a9a}
+.ab.sec:hover{color:#e8e0d0;border-color:rgba(255,255,255,.22)}
+
+/* ─ Map labels ─ */
+.lb{fill:rgba(255,255,255,.95);stroke:rgba(8,18,35,.92);stroke-width:2.5;
+  paint-order:stroke;font-weight:600;letter-spacing:.02em;
+  font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;
+  pointer-events:none}
+.lb.dim{opacity:.1}
+.wlbl{font-style:italic;paint-order:stroke;stroke:rgba(10,28,55,.88);
+  stroke-width:2.5;pointer-events:none;
+  font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;font-weight:300}
+.wlbl-ocean{fill:rgba(155,198,232,.78);letter-spacing:4px;font-size:14px}
+.wlbl-sea{fill:rgba(140,188,225,.75);letter-spacing:1.5px}
+.wlbl-lake{fill:rgba(130,180,220,.72);letter-spacing:.5px;font-style:normal;font-weight:400}
+.clb{fill:#f5dfa0;stroke:rgba(8,18,32,.9);stroke-width:2;paint-order:stroke;
+  font-weight:500;letter-spacing:.02em;
+  font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;
+  pointer-events:none}
+
+/* ─ Scrollbar ─ */
+::-webkit-scrollbar{width:3px}
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
-::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.18)}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2)}
 </style>
 </head>
 <body>
@@ -173,9 +304,14 @@ header{display:flex;align-items:center;justify-content:space-between;padding:10p
   <div id="mwrap">
     <svg id="msvg"></svg>
     <div id="tip"></div>
-    <div class="map-btns">
-      <button class="mapbtn" onclick="resetZoom()">⊕ 全圖</button>
-      <button class="mapbtn" id="lblbtn" onclick="toggleLabels()">📍 國名標籤</button>
+    <div id="layers-wrap">
+      <div class="lw-top">
+        <span class="ltitle">圖層控制</span>
+        <button class="lbtn-sm" onclick="resetZoom()" title="縮放全圖">⊕</button>
+      </div>
+      <button class="lbtn on" id="lblbtn" data-layer="labels" onclick="toggleLabels()">📍 國名標籤</button>
+      <button class="lbtn on" data-layer="cities" onclick="toggleLayer('cities')">🏛 首都名稱</button>
+      <button class="lbtn" data-layer="timezone" onclick="toggleLayer('timezone')">🕐 UTC 時區</button>
     </div>
     <div class="ldg" id="ldg"><div class="spin"></div><span>載入地圖資料…</span></div>
   </div>
@@ -404,12 +540,33 @@ var C = {
 var RCOL={asia:"#c09060",europe:"#6898b8",africa:"#c8a040",na:"#68aa86",sa:"#509e70",oc:"#ba7860"};
 var RLB={all:"全球",asia:"亞洲",europe:"歐洲",africa:"非洲",na:"北美洲",sa:"南美洲",oc:"大洋洲"};
 
+/* ── 圖層狀態 ── */
+var LS={cities:true,timezone:false};
+function toggleLayer(nm){
+  LS[nm]=!LS[nm];
+  /* 時區層在各 tile 的 .tile-tz 群組 */
+  if(nm==="timezone"&&gEl) gEl.selectAll(".tile-tz").style("display",LS[nm]?null:"none");
+  /* 首都標籤在 svgEl */
+  if(nm==="cities"&&svgEl) svgEl.select(".city-lg").style("display",LS[nm]?null:"none");
+  document.querySelectorAll("[data-layer='"+nm+"']").forEach(function(b){b.classList.toggle("on",LS[nm]);});
+}
+/* 各大洲：中心點 + 縮放值（避免 Mercator 高緯度失真導致計算錯誤）*/
+var CONT_VIEW={
+  asia:   {lon:95,  lat:33,  sc:2.5},
+  europe: {lon:14,  lat:52,  sc:4.2},
+  africa: {lon:22,  lat:3,   sc:2.8},
+  na:     {lon:-100,lat:45,  sc:2.4},
+  sa:     {lon:-60, lat:-18, sc:3.0},
+  oc:     {lon:140, lat:-27, sc:3.5},
+};
 var S={
   mode:"learn",lview:"map",region:"all",selId:null,worldData:null,
   q:{active:false,region:"all",type:"mixed",qType:null,curId:null,
      opts:[],answered:false,correct:0,total:0,streak:0}
 };
 var svgEl,proj,pfn,zbeh,gEl,W,H,showLabels=true;
+var tileRefs=[],tileOff=[]; /* 三拼貼動態位移 */
+var S_hovId=null; /* 目前 hover 的國家 ID */
 
 /* ── 核心修正：topojson ID 為帶前導零字串，用 +id 轉成整數查表 ── */
 function L(id){ return C[+id]||null; }
@@ -419,42 +576,47 @@ function gcf(id){ var d=L(id); return d?(RCOL[d[5]]||"#7a8a90"):"#506070"; }
 function rcolor(){
   if(!gEl) return;
   var isQ=S.mode==="quiz"&&S.q.active;
+  /* 更新所有 tile 副本填色 */
   gEl.selectAll(".cp").each(function(d){
     var el=d3.select(this);
     var id=+d.id;
     if(isQ){
       var cur=id===S.q.curId;
-      el.attr("fill",cur?"#ff6820":"#243040").attr("opacity",cur?1:0.22)
-        .classed("hl",cur).classed("dim",!cur).classed("sel",false);
+      el.attr("fill",cur?"#ff6820":"#243040").attr("opacity",cur?1:0.22);
     } else {
-      var cd=L(d.id);
-      var inR=S.region==="all"||(cd&&cd[5]===S.region);
-      el.attr("fill",inR?gcf(d.id):"#243040").attr("opacity",inR?1:0.2)
-        .classed("dim",!inR).classed("sel",id===S.selId).classed("hl",false);
+      el.attr("fill",gcf(id)).attr("opacity",null);
     }
   });
-  /* 測驗模式：完全隱藏所有標籤，避免答案外洩 */
-  if(svgEl){
-    var lgEl=svgEl.select(".lg");
-    if(!lgEl.empty()){
-      if(isQ){
-        lgEl.style("display","none");
-      } else {
-        lgEl.style("display",showLabels?null:"none");
-        if(showLabels){
-          lgEl.selectAll(".lb-g").each(function(){
-            var id=+this.getAttribute("data-id");
-            var cd=L(id);
-            var inR=S.region==="all"||(cd&&cd[5]===S.region);
-            d3.select(this).select("text").classed("dim",!inR);
-          });
-        }
-      }
+  /* 選取高亮：所有副本都更新 */
+  gEl.selectAll(".cp").classed("sel",false).classed("hl",false);
+  if(!isQ&&S.selId){
+    gEl.selectAll(".cp").filter(function(d){return+d.id===S.selId;}).classed("sel",true);
+  }
+  if(isQ&&S.q.curId){
+    gEl.selectAll(".cp").filter(function(d){return+d.id===S.q.curId;}).classed("hl",true);
+  }
+  /* dim：大洲篩選 + 清單選取 */
+  gEl.selectAll(".cp").classed("dim",false);
+  if(!isQ){
+    var hasRegion=S.region&&S.region!=="all";
+    var hasSel=S.selId&&S.lview==="list";
+    if(hasRegion||hasSel){
+      gEl.selectAll(".cp").each(function(d){
+        var id=+d.id; var cd=L(id);
+        var rDim=hasRegion&&!(cd&&cd[5]===S.region);
+        var sDim=hasSel&&id!==S.selId;
+        if(rDim||sDim) d3.select(this).classed("dim",true);
+      });
     }
   }
+  /* 標籤 dim */
+  svgEl.select(".lg").selectAll(".lb-g").each(function(){
+    var id=+this.getAttribute("data-id");
+    var dim=showLabels&&S.selId&&id!==S.selId&&S.lview==="list";
+    d3.select(this).classed("dim",dim||!showLabels);
+  });
 }
 
-/* ── Tooltip ── */
 function showTip(e,d){
   if(S.mode==="quiz"&&S.q.active) return;  // 測驗時不顯示國家名
   var cd=L(d.id); if(!cd) return;
@@ -477,23 +639,33 @@ function onCC(id){
 function selFromList(id){ S.selId=+id; rcolor(); zoomTo(+id); showInfo(+id); }
 
 function zoomTo(intId){
-  if(!S.worldData||!svgEl) return;
-  var feat=topojson.feature(S.worldData,S.worldData.objects.countries);
-  var f=feat.features.find(function(f){return+f.id===intId;});
-  if(!f) return;
-  var b=pfn.bounds(f), bw=b[1][0]-b[0][0], bh=b[1][1]-b[0][1];
-  var sc=Math.min(10,0.78/Math.max(bw/W,bh/H));
-  var cx=(b[0][0]+b[1][0])/2, cy=(b[0][1]+b[1][1])/2;
-  svgEl.transition().duration(700).call(
-    zbeh.transform, d3.zoomIdentity.translate(W/2,H/2).scale(sc).translate(-cx,-cy));
+  if(!S.worldData) return;
+  var geoms=S.worldData.objects.countries.geometries;
+  var g=geoms.find(function(x){return+x.id===intId;});
+  if(!g) return;
+  var feat=topojson.feature(S.worldData,g);
+  var bounds=pfn.bounds(feat);
+  if(!bounds||!isFinite(bounds[0][0])) return;
+  var bw=bounds[1][0]-bounds[0][0], bh=bounds[1][1]-bounds[0][1];
+  var cx=(bounds[0][0]+bounds[1][0])/2, cy=(bounds[0][1]+bounds[1][1])/2;
+  var sc=Math.max(1.0, Math.min(40,0.78/Math.max(bw/W,bh/H)));
+  /* 找最近的世界副本：依據目前螢幕中心位置決定跳往哪個副本
+     避免在左右滑動後跳回原始世界（0~W 投影座標）              */
+  var curT=d3.zoomTransform(svgEl.node());
+  var viewCx=(W/2-curT.x)/curT.k;
+  var n=Math.round((viewCx-cx)/W);
+  var adjCx=cx+n*W;
+  svgEl.transition().duration(600)
+    .call(zbeh.transform,d3.zoomIdentity.translate(W/2-sc*adjCx,H/2-sc*cy).scale(sc));
 }
+
 function resetZoom(){
   if(svgEl) svgEl.transition().duration(500).call(zbeh.transform,d3.zoomIdentity);
 }
 function toggleLabels(){
   showLabels=!showLabels;
   if(svgEl) svgEl.select(".lg").style("display",showLabels?null:"none");
-  document.getElementById("lblbtn").classList.toggle("off",!showLabels);
+  var bl=document.getElementById("lblbtn");if(bl)bl.classList.toggle("on",showLabels);
 }
 
 /* ── 模式與地區 ── */
@@ -508,8 +680,22 @@ function setMode(m){
 function setRegion(btn,r){
   S.region=r; S.selId=null;
   document.querySelectorAll(".rp").forEach(function(b){b.classList.remove("on");});
-  btn.classList.add("on"); rcolor(); resetZoom(); updBdg();
+  btn.classList.add("on"); rcolor(); updBdg();
   if(S.mode==="learn") renderLearn();
+  if(!proj||!zbeh||!svgEl) return;
+  if(r==="all"){ resetZoom(); return; }
+  var cv=CONT_VIEW[r]; if(!cv) return;
+  /* proj([lon, lat]) 轉換為地圖投影座標 */
+  var lc=proj([cv.lon, cv.lat]);
+  if(!lc||!isFinite(lc[0])) return;
+  var cx=lc[0], cy=lc[1], sc=cv.sc;
+  /* 與 zoomTo 相同：找最近的世界副本，避免跳回原始位置 */
+  var curT=d3.zoomTransform(svgEl.node());
+  var viewCx=(W/2-curT.x)/curT.k;
+  var n=Math.round((viewCx-cx)/W);
+  var adjCx=cx+n*W;
+  svgEl.transition().duration(700)
+    .call(zbeh.transform, d3.zoomIdentity.translate(W/2-sc*adjCx, H/2-sc*cy).scale(sc));
 }
 function updBdg(){
   var n=Object.values(C).filter(function(d){return S.region==="all"||d[5]===S.region;}).length;
@@ -710,99 +896,209 @@ async function initMap(){
   W=wrap.clientWidth||800; H=wrap.clientHeight||500;
   svgEl=d3.select("#msvg");
 
-  /* Mercator：與 Google Maps 相同的投影
-     scale = W/(2π) → 360° 剛好填滿寬度 W（無限滾動的關鍵）
-     不使用 center()，保持世界寬度剛好等於 W，方便拼貼計算
-     translate y +60 → 赤道偏下，讓視角偏向北半球 */
   proj=d3.geoMercator()
-    .scale(W/(2*Math.PI))
-    .translate([W/2,H/2+60]);
+    .scale(W/(2*Math.PI)).translate([W/2,H/2+60]);
   pfn=d3.geoPath().projection(proj);
 
-  zbeh=d3.zoom().scaleExtent([0.5,18])
+  /* ── Zoom handler ──────────────────────────────────────────────────
+     translateExtent: 限制上下滾動，避免滑到空白區域
+     n0 算法：根據 viewport 位置計算三個 tile 應在的「世界索引」
+     ─────────────────────────────────────────────────────────────── */
+  zbeh=d3.zoom()
+    .scaleExtent([1,50])          /* 最小 1x：世界恰好填滿 viewport，永不出現重複國家 */
+    .extent([[0,0],[W,H]])
+    .translateExtent([[-Infinity,-H*0.3],[Infinity,H*1.3]])
     .on("zoom",function(e){
+      var k=e.transform.k,tx=e.transform.x,ty=e.transform.y,kW=k*W;
+      var n0=Math.floor(-tx/kW)-1;
       gEl.attr("transform",e.transform);
-      var ww=W*e.transform.k; // 目前縮放下的世界寬度（螢幕像素）
-      /* 重算國家標籤和水域標籤的螢幕座標（含換行邏輯） */
-      function reposLabels(sel){
+      /* 所有 tile（含河流/湖泊/行政區）一起移動 */
+      for(var ti=0;ti<tileRefs.length;ti++){
+        tileOff[ti]=(n0+ti)*W;
+        tileRefs[ti].attr("transform","translate("+tileOff[ti]+",0)");
+      }
+      /* 標籤環繞：帶到最接近螢幕中央 */
+      function repos(sel){
         sel.attr("transform",function(){
           var ox=+this.getAttribute("data-ox"),oy=+this.getAttribute("data-oy");
-          var p=e.transform.apply([ox,oy]);
-          var px=p[0];
-          if(px<-80) px+=ww;
-          else if(px>W+80) px-=ww;
-          return "translate("+px+","+p[1]+")";
+          var px=k*ox+tx,py=k*oy+ty;
+          while(px>W/2+kW/2) px-=kW;
+          while(px<W/2-kW/2) px+=kW;
+          return "translate("+px+","+py+")";
         });
       }
-      reposLabels(svgEl.select(".lg").selectAll(".lb-g"));
-      reposLabels(svgEl.select(".wlg").selectAll(".wlb-g"));
+      repos(svgEl.select(".lg").selectAll(".lb-g"));
+      repos(svgEl.select(".wlg").selectAll(".wlb-g"));
+      repos(svgEl.select(".city-lg").selectAll(".clb-g"));
+      /* 國名標籤：依縮放層級隱藏小國，避免低縮放時文字堆疊 */
+      svgEl.select(".lg").selectAll(".lb-g").each(function(){
+        var a=+this.getAttribute("data-area")||0;
+        var show=k>=6||(k>=3&&a>30)||(k>=1.5&&a>150)||(k>=0.9&&a>600)||a>2000;
+        this.style.display=show?null:"none";
+      });
+      /* 首都標籤隨縮放動態顯示 */
+      if(LS.cities){
+        svgEl.select(".city-lg").selectAll(".clb-g").each(function(){
+          var pop=+this.getAttribute("data-pop");
+          var show=(k>=8)||(k>=4&&pop>=300000)||(k>=2.5&&pop>=1e6)||(k>=1.5&&pop>=3e6)||(pop>=8e6);
+          this.style.display=show?null:"none";
+        });
+      }
     });
   svgEl.call(zbeh);
 
-  svgEl.append("rect").attr("width",W).attr("height",H).attr("fill","#1e3a58");
+  svgEl.append("rect").attr("width",W).attr("height",H).attr("fill","#183858");
   gEl=svgEl.append("g");
 
+  function sf(url){return fetch(url).then(function(r){return r.ok?r.json():null;}).catch(function(){return null;});}
+  function setStatus(txt){var s=document.getElementById("ldg");if(s){var sp=s.querySelector("span");if(sp)sp.textContent=txt;}}
+  function toFC(d){
+    if(!d) return null;
+    if(d.type==="FeatureCollection") return d;
+    if(d.type==="Topology"){var ok=Object.keys(d.objects)[0];return topojson.feature(d,d.objects[ok]);}
+    return null;
+  }
+
+  setStatus("載入底圖…");
   try{
-    var res=await fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json");
-    if(!res.ok) throw new Error("HTTP "+res.status);
-    var world=await res.json();
+    var world=await sf("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json");
+    if(!world) throw new Error("底圖載入失敗，請確認網路後重新整理");
     S.worldData=world;
     var countries=topojson.feature(world,world.objects.countries);
-
-    /* ── 三個世界拼貼，實現無限水平滾動 ───────────────────
-       世界寬度剛好 = W 像素（由 scale = W/2π 保證）
-       左拼貼 offset=-W，中拼貼 offset=0（可互動），右拼貼 offset=+W
-       拖曳到邊緣時，相鄰拼貼無縫接續，視覺上無限滾動 */
     var borderMesh=topojson.mesh(world,world.objects.countries);
-    [-1,0,1].forEach(function(off){
-      var tile=gEl.append("g")
-        .attr("class",off===0?"tile-c":"tile-s")
-        .attr("transform","translate("+(off*W)+",0)");
-      if(off!==0) tile.attr("pointer-events","none");
 
-      var paths=tile.selectAll(".cp").data(countries.features).join("path")
-        .attr("class","country-path cp")
-        .attr("d",pfn)
+    setStatus("載入附加圖層…");
+    var GH="https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/";
+    var [riverData,lakeData,cityData,admin1Data,tzData]=await Promise.all([
+      sf(GH+"ne_110m_rivers_lake_centerlines.geojson"),
+      sf(GH+"ne_110m_lakes.geojson"),
+      sf(GH+"ne_110m_populated_places_simple.geojson"),
+      sf(GH+"ne_50m_admin_1_states_provinces_lines.geojson"),
+      sf(GH+"ne_10m_time_zones.geojson"), /* 實際時區邊界（120個多邊形） */
+    ]);
+    var rfc=toFC(riverData), lfc=toFC(lakeData);
+    var a1fc=toFC(admin1Data);
+    var graticule=d3.geoGraticule()();
+
+    
+    /* ── 三個統一 master tile（所有圖層都在裡面，一起平移）──
+       這樣河流/湖泊/行政邊界/網格都能正確跟隨無限滾動          */
+    tileRefs=[]; tileOff=[];
+    /* 4 個 tile：確保任何縮放層級下 viewport 都完整覆蓋
+       數學：3 個 tile 在 k<1 時可能有縫；4 個保證 k>=0.4 都安全 */
+    [-1,0,1,2].forEach(function(off,idx){
+      var tile=gEl.append("g").attr("transform","translate("+(off*W)+",0)");
+      tileRefs.push(tile); tileOff.push(off*W);
+
+      /* 網格（在最底層）*/
+      tile.append("path").datum(graticule).attr("d",pfn)
+        .attr("fill","none").attr("stroke","rgba(255,255,255,.055)")
+        .attr("stroke-width",.55).attr("pointer-events","none");
+
+      /* 國家填色 */
+      var cpaths=tile.selectAll(".cp").data(countries.features).join("path")
+        .attr("class","country-path cp").attr("d",pfn)
         .attr("fill",function(d){return gcf(d.id);});
 
-      if(off===0){
-        /* 經緯線只畫中間拼貼 */
-        tile.append("path").datum(d3.geoGraticule()()).attr("d",pfn)
-          .attr("fill","none").attr("stroke","rgba(255,255,255,.05)")
-          .attr("stroke-width",.6).attr("pointer-events","none");
-        /* 只有中間拼貼可互動；hover 改由 JS 管理避免 zoom 後 CSS :hover 卡住 */
-        paths.attr("id",function(d){return"c"+d.id;})
-          .on("mouseover",function(e,d){
-            showTip(e,d);
-            d3.select(this).classed("hov",true);
-          })
-          .on("mousemove",mvTip)
-          .on("mouseout",function(e,d){
-            hideTip();
-            d3.select(this).classed("hov",false);
-          })
-          .on("click",function(e,d){onCC(d.id);});
-      }
-
-      tile.append("path")
-        .datum(borderMesh)
-        .attr("d",pfn).attr("fill","none")
+      /* 國家邊界 */
+      tile.append("path").datum(borderMesh).attr("d",pfn).attr("fill","none")
         .attr("stroke","rgba(255,255,255,.72)").attr("stroke-width",.75)
         .attr("pointer-events","none");
+
+      /* 湖泊 */
+      if(lfc&&lfc.features){
+        tile.selectAll(".lk").data(lfc.features).join("path").attr("class","lk")
+          .attr("d",pfn).attr("fill","#1e4570")
+          .attr("stroke","rgba(60,140,210,.5)").attr("stroke-width",.5)
+          .attr("pointer-events","none");
+      }
+
+      /* 河流 */
+      if(rfc&&rfc.features){
+        tile.selectAll(".rv").data(rfc.features).join("path").attr("class","rv")
+          .attr("d",pfn).attr("fill","none")
+          .attr("stroke","#62b8e8").attr("stroke-opacity",.8)
+          .attr("stroke-width",function(d){
+            var sr=d.properties.scalerank||7;
+            return sr<=2?1.6:sr<=4?1.0:sr<=6?0.6:0.35;
+          })
+          .attr("pointer-events","none");
+      }
+
+      /* 行政邊界（州/省） */
+      if(a1fc&&a1fc.features){
+        tile.selectAll(".a1p").data(a1fc.features).join("path").attr("class","a1p")
+          .attr("d",pfn).attr("fill","none")
+          .attr("stroke","rgba(255,255,255,.3)").attr("stroke-width",.5)
+          .attr("stroke-dasharray","3 2").attr("pointer-events","none");
+      }
+
+      /* 時區（可切換）：使用 Natural Earth 10m 實際時區邊界（120 個多邊形）
+         正確呈現台灣 UTC+8 = 馬來西亞 UTC+8 同色；美國各州時區、俄羅斯多時區等
+         clipPath: 限制在 tile [0,W] 範圍，避免日期變更線附近的反繞渲染問題    */
+      var clipId="tc"+idx;
+      tile.append("clipPath").attr("id",clipId)
+        .append("rect").attr("x",0).attr("y",-H*5).attr("width",W).attr("height",H*12);
+      var tzGrp=tile.append("g").attr("class","tile-tz")
+        .style("display",LS.timezone?null:"none")
+        .attr("pointer-events","none")
+        .attr("clip-path","url(#"+clipId+")");
+      if(tzData&&tzData.features){
+        /* 時區多邊形：name 屬性是 UTC offset 數字（如 8, -5, 5.5, -9.5…）*/
+        tzGrp.selectAll(".tzfill").data(tzData.features).join("path")
+          .attr("class","tzfill").attr("d",pfn)
+          .attr("fill",function(d){
+            var off=parseFloat(d.properties.name);
+            if(!isFinite(off)) return "transparent";
+            var n=(off+12)/25;
+            return "hsla("+Math.round(240*(1-n))+",70%,58%,.28)";
+          })
+          .attr("stroke","rgba(255,255,255,.1)").attr("stroke-width",.3);
+        /* 每個 UTC offset 標籤：找該 offset 最大的多邊形放標籤 */
+        var tzLbls={};
+        tzData.features.forEach(function(f){
+          var off=parseFloat(f.properties.name);
+          if(!isFinite(off)) return;
+          var area=Math.abs(pfn.area(f));
+          if(!tzLbls[off]||area>tzLbls[off].area)
+            tzLbls[off]={area:area,c:pfn.centroid(f)};
+        });
+        Object.keys(tzLbls).forEach(function(off){
+          var z=tzLbls[off]; var c=z.c;
+          if(!c||!isFinite(c[0])||!isFinite(c[1])) return;
+          tzGrp.append("text").attr("transform","translate("+c+")")
+            .attr("text-anchor","middle").attr("font-size",7.5)
+            .attr("fill","rgba(255,215,100,.8)").attr("font-family","monospace")
+            .attr("pointer-events","none")
+            .text("UTC"+(+off>=0?"+":"")+off);
+        });
+      }
+
+      /* 事件：全部三個 tile 都加，hover/click 高亮所有世界副本 */
+      cpaths.attr("id",function(d){return"c"+d.id+(idx===1?"":"-t"+idx);})
+        .on("mouseover",function(e,d){
+          S_hovId=+d.id; showTip(e,d);
+          d3.selectAll(".cp").filter(function(dd){return+dd.id===S_hovId;}).classed("hov",true);
+        })
+        .on("mousemove",mvTip)
+        .on("mouseout",function(e,d){
+          hideTip();
+          if(S_hovId!==null) d3.selectAll(".cp").filter(function(dd){return+dd.id===S_hovId;}).classed("hov",false);
+          S_hovId=null;
+        })
+        .on("click",function(e,d){onCC(+d.id);});
+      /* 不設 pointer-events:none，讓所有副本都可點擊 */
     });
 
-    /* ── 地圖標籤：放在 svgEl（非 gEl），字體固定螢幕大小 ── */
-    /* 測驗模式下完全隱藏，避免洩漏答案 */
-    /* bestCentroid：多邊形國家（美、俄、加、印尼等）找最大陸塊的中心，
-       避免標籤跑到海洋或夾在兩塊大陸之間 */
+    /* ── 國家名標籤 ── */
     function bestCentroid(f){
       if(!f.geometry) return pfn.centroid(f);
       if(f.geometry.type==="MultiPolygon"){
-        var best=null, bArea=-1;
+        var best=null,bA=-1;
         f.geometry.coordinates.forEach(function(coords){
-          var tmp={type:"Feature",geometry:{type:"Polygon",coordinates:coords}};
-          var a=Math.abs(pfn.area(tmp));
-          if(a>bArea){bArea=a;best=tmp;}
+          var t={type:"Feature",geometry:{type:"Polygon",coordinates:coords}};
+          var a=Math.abs(pfn.area(t));
+          if(a>bA){bA=a;best=t;}
         });
         return best?pfn.centroid(best):pfn.centroid(f);
       }
@@ -813,62 +1109,34 @@ async function initMap(){
       var cd=L(f.id); if(!cd) return;
       var c=bestCentroid(f);
       if(!isFinite(c[0])||!isFinite(c[1])) return;
-      var area=Math.abs(pfn.area(f));
-      if(area<3) return;
-      /* 字體大小根據國家面積決定，單位為固定螢幕像素 */
+      var area=Math.abs(pfn.area(f)); if(area<3) return;
       var fs=area>3500?13:area>700?11:area>180?9.5:area>50?8.5:7.5;
-      var g=lg.append("g")
-        .attr("class","lb-g")
-        .attr("data-ox",c[0]).attr("data-oy",c[1])
-        .attr("data-id",+f.id)
+      var g=lg.append("g").attr("class","lb-g")
+        .attr("data-ox",c[0]).attr("data-oy",c[1]).attr("data-id",+f.id)
+        .attr("data-area",Math.round(area))
         .attr("transform","translate("+c[0]+","+c[1]+")");
-      g.append("text")
-        .attr("class","lb")
-        .attr("text-anchor","middle")
-        .attr("dy","0.35em")
-        .attr("font-size",fs)
-        .text(cd[0]);
+      g.append("text").attr("class","lb").attr("text-anchor","middle")
+        .attr("dy","0.35em").attr("font-size",fs).text(cd[0]);
     });
 
-    document.getElementById("ldg").style.display="none";
-    updBdg();
-
-    /* ── 水域標籤（海洋 / 海 / 湖泊）────────────────────────
-       避免使用者把大湖（裏海、五大湖、維多利亞湖等）誤認為資料缺失
-       採用斜體淡藍色，與國家名標籤明顯區隔                        */
+    /* ── 水域標籤 ── */
     var WATERS=[
-      {zh:"太平洋",lon:-168,lat:15,type:"ocean"},
-      {zh:"太平洋",lon:-148,lat:-25,type:"ocean"},
-      {zh:"大西洋",lon:-28,lat:10,type:"ocean"},
-      {zh:"大西洋",lon:-20,lat:-30,type:"ocean"},
-      {zh:"印度洋",lon:75,lat:-22,type:"ocean"},
-      {zh:"北冰洋",lon:0,lat:78,type:"ocean"},
-      {zh:"地中海",lon:15,lat:37,size:10,type:"sea"},
-      {zh:"加勒比海",lon:-76,lat:15,size:10,type:"sea"},
-      {zh:"紅海",lon:37,lat:20,size:9,type:"sea"},
-      {zh:"阿拉伯海",lon:65,lat:18,size:10,type:"sea"},
-      {zh:"孟加拉灣",lon:88,lat:13,size:10,type:"sea"},
-      {zh:"南海",lon:115,lat:12,size:11,type:"sea"},
-      {zh:"東海",lon:126,lat:28,size:9,type:"sea"},
-      {zh:"日本海",lon:135,lat:40,size:9,type:"sea"},
-      {zh:"黑海",lon:33,lat:43,size:9,type:"sea"},
-      {zh:"墨西哥灣",lon:-90,lat:24,size:10,type:"sea"},
-      {zh:"北海",lon:3,lat:56,size:9,type:"sea"},
-      {zh:"波羅的海",lon:20,lat:58,size:9,type:"sea"},
-      {zh:"幾內亞灣",lon:5,lat:2,size:9,type:"sea"},
-      {zh:"白令海",lon:-177,lat:57,size:10,type:"sea"},
-      {zh:"珊瑚海",lon:152,lat:-18,size:9,type:"sea"},
-      {zh:"塔斯曼海",lon:158,lat:-40,size:9,type:"sea"},
-      {zh:"裏海",lon:51,lat:42,size:10,type:"lake"},
-      {zh:"蘇必略湖",lon:-87.5,lat:47.5,size:8,type:"lake"},
-      {zh:"密西根湖",lon:-87,lat:43.8,size:8,type:"lake"},
-      {zh:"休倫湖",lon:-82.5,lat:44.5,size:8,type:"lake"},
-      {zh:"伊利湖",lon:-81,lat:42.2,size:7,type:"lake"},
-      {zh:"安大略湖",lon:-77.8,lat:43.7,size:7,type:"lake"},
-      {zh:"維多利亞湖",lon:33,lat:-1.2,size:9,type:"lake"},
-      {zh:"坦干伊喀湖",lon:29.5,lat:-6,size:8,type:"lake"},
-      {zh:"馬拉威湖",lon:34.5,lat:-12,size:8,type:"lake"},
-      {zh:"貝加爾湖",lon:108,lat:53,size:9,type:"lake"},
+      {zh:"太平洋",lon:-168,lat:15,type:"ocean"},{zh:"太平洋",lon:-148,lat:-25,type:"ocean"},
+      {zh:"大西洋",lon:-28,lat:10,type:"ocean"},{zh:"大西洋",lon:-20,lat:-30,type:"ocean"},
+      {zh:"印度洋",lon:75,lat:-22,type:"ocean"},{zh:"北冰洋",lon:0,lat:78,type:"ocean"},
+      {zh:"地中海",lon:15,lat:37,size:10,type:"sea"},{zh:"加勒比海",lon:-76,lat:15,size:10,type:"sea"},
+      {zh:"紅海",lon:37,lat:20,size:9,type:"sea"},{zh:"阿拉伯海",lon:65,lat:18,size:10,type:"sea"},
+      {zh:"孟加拉灣",lon:88,lat:13,size:10,type:"sea"},{zh:"南海",lon:115,lat:12,size:11,type:"sea"},
+      {zh:"東海",lon:126,lat:28,size:9,type:"sea"},{zh:"日本海",lon:135,lat:40,size:9,type:"sea"},
+      {zh:"黑海",lon:33,lat:43,size:9,type:"sea"},{zh:"墨西哥灣",lon:-90,lat:24,size:10,type:"sea"},
+      {zh:"北海",lon:3,lat:56,size:9,type:"sea"},{zh:"波羅的海",lon:20,lat:58,size:9,type:"sea"},
+      {zh:"幾內亞灣",lon:5,lat:2,size:9,type:"sea"},{zh:"白令海",lon:-177,lat:57,size:10,type:"sea"},
+      {zh:"珊瑚海",lon:152,lat:-18,size:9,type:"sea"},{zh:"塔斯曼海",lon:158,lat:-40,size:9,type:"sea"},
+      {zh:"裏海",lon:51,lat:42,size:10,type:"lake"},{zh:"蘇必略湖",lon:-87.5,lat:47.5,size:8,type:"lake"},
+      {zh:"密西根湖",lon:-87,lat:43.8,size:8,type:"lake"},{zh:"休倫湖",lon:-82.5,lat:44.5,size:8,type:"lake"},
+      {zh:"伊利湖",lon:-81,lat:42.2,size:7,type:"lake"},{zh:"安大略湖",lon:-77.8,lat:43.7,size:7,type:"lake"},
+      {zh:"維多利亞湖",lon:33,lat:-1.2,size:9,type:"lake"},{zh:"坦干伊喀湖",lon:29.5,lat:-6,size:8,type:"lake"},
+      {zh:"馬拉威湖",lon:34.5,lat:-12,size:8,type:"lake"},{zh:"貝加爾湖",lon:108,lat:53,size:9,type:"lake"},
       {zh:"鹹海",lon:59,lat:45,size:8,type:"lake"},
     ];
     var wlg=svgEl.append("g").attr("class","wlg").attr("pointer-events","none");
@@ -876,23 +1144,149 @@ async function initMap(){
       var c=proj([w.lon,w.lat]);
       if(!c||!isFinite(c[0])||!isFinite(c[1])) return;
       var fs=w.size||(w.type==="ocean"?15:w.type==="sea"?10:8);
-      wlg.append("g")
-        .attr("class","wlb-g")
+      wlg.append("g").attr("class","wlb-g")
         .attr("data-ox",c[0]).attr("data-oy",c[1])
         .attr("transform","translate("+c[0]+","+c[1]+")")
-        .append("text")
-        .attr("class","wlbl wlbl-"+w.type)
-        .attr("text-anchor","middle")
-        .attr("dy","0.35em")
-        .attr("font-size",fs)
-        .text(w.zh);
+        .append("text").attr("class","wlbl wlbl-"+w.type)
+        .attr("text-anchor","middle").attr("dy","0.35em")
+        .attr("font-size",fs).text(w.zh);
     });
+
+    /* ── 首都名稱標籤（svgEl 層）── */
+    var CITY_ZH={
+  "Tokyo":"東京","Osaka":"大阪","Kyoto":"京都",
+  "Seoul":"首爾","Busan":"釜山","Pyongyang":"平壤",
+  "Beijing":"北京","Shanghai":"上海","Guangzhou":"廣州","Shenzhen":"深圳",
+  "Chongqing":"重慶","Chengdu":"成都","Wuhan":"武漢","Tianjin":"天津",
+  "Nanjing":"南京","Xi'an":"西安","Harbin":"哈爾濱","Shenyang":"瀋陽",
+  "Hong Kong":"香港","Taipei":"臺北","Ulaanbaatar":"烏蘭巴托",
+  "New Delhi":"新德里","Mumbai":"孟買","Kolkata":"加爾各答",
+  "Bangalore":"班加羅爾","Chennai":"欽奈","Hyderabad":"海德拉巴",
+  "Dhaka":"達卡","Karachi":"喀拉蚩","Lahore":"拉合爾",
+  "Islamabad":"伊斯蘭馬巴德","Kathmandu":"加德滿都","Colombo":"可倫坡",
+  "Thimphu":"廷布","Male":"馬利","Malé":"馬利",
+  "Bangkok":"曼谷","Hanoi":"河內","Ho Chi Minh City":"胡志明市",
+  "Manila":"馬尼拉","Yangon":"仰光","Naypyidaw":"奈比多",
+  "Phnom Penh":"金邊","Vientiane":"永珍","Kuala Lumpur":"吉隆坡",
+  "Singapore":"新加坡","Jakarta":"雅加達","Dili":"帝力",
+  "Bandar Seri Begawan":"斯里巴加灣市",
+  "Tashkent":"塔什干","Almaty":"阿拉木圖","Nur-Sultan":"努爾蘇丹",
+  "Bishkek":"比什凱克","Dushanbe":"杜尚別","Ashgabat":"阿什哈巴德",
+  "Kabul":"喀布爾","Tehran":"德黑蘭","Baghdad":"巴格達",
+  "Riyadh":"利雅德","Jeddah":"吉達","Kuwait City":"科威特市",
+  "Doha":"多哈","Abu Dhabi":"阿布達比","Dubai":"杜拜",
+  "Muscat":"馬斯喀特","Sanaa":"薩那","Sana'a":"薩那",
+  "Amman":"安曼","Beirut":"貝魯特","Damascus":"大馬士革",
+  "Jerusalem":"耶路撒冷","Tel Aviv":"特拉維夫","Ankara":"安卡拉",
+  "Baku":"巴庫","Tbilisi":"提比里斯","Yerevan":"葉里溫",
+  "Nicosia":"尼科西亞","Manama":"麥納瑪",
+  "London":"倫敦","Paris":"巴黎","Berlin":"柏林",
+  "Madrid":"馬德里","Barcelona":"巴塞隆納","Rome":"羅馬","Milan":"米蘭",
+  "Amsterdam":"阿姆斯特丹","Brussels":"布魯塞爾","Bern":"伯恩",
+  "Vienna":"維也納","Prague":"布拉格","Warsaw":"華沙",
+  "Budapest":"布達佩斯","Bucharest":"布加勒斯特",
+  "Stockholm":"斯德哥爾摩","Oslo":"奧斯陸",
+  "Copenhagen":"哥本哈根","København":"哥本哈根",
+  "Helsinki":"赫爾辛基","Athens":"雅典","Lisbon":"里斯本",
+  "Moscow":"莫斯科","Saint Petersburg":"聖彼得堡",
+  "Kyiv":"基輔","Minsk":"明斯克",
+  "Belgrade":"貝爾格勒","Zagreb":"薩格勒布","Ljubljana":"盧比安納",
+  "Sarajevo":"塞拉耶佛","Podgorica":"波德哥里察","Pristina":"普里斯提納",
+  "Skopje":"史高比耶","Tirana":"地拉那","Sofia":"索菲亞",
+  "Bratislava":"布拉提斯拉瓦","Riga":"里加","Vilnius":"維爾紐斯","Tallinn":"塔林",
+  "Reykjavík":"雷克雅維克","Dublin":"都柏林","Luxembourg":"盧森堡市",
+  "Vaduz":"瓦杜茲","Monaco":"摩納哥市","Andorra":"安道爾城",
+  "San Marino":"聖馬利諾市","Vatican City":"梵蒂岡城","Valletta":"瓦萊塔",
+  "Chișinău":"基希訥烏","Chisinau":"基希訥烏",
+  "Cairo":"開羅","Algiers":"阿爾及爾","Tunis":"突尼斯",
+  "Tripoli":"的黎波里","Rabat":"拉巴特","Casablanca":"卡薩布蘭卡",
+  "Khartoum":"喀土穆",
+  "Lagos":"拉哥斯","Abuja":"阿布加","Abidjan":"阿比讓","Accra":"阿克拉",
+  "Dakar":"達喀爾","Bamako":"巴馬科","Conakry":"科納克里",
+  "Freetown":"自由城","Monrovia":"蒙羅維亞",
+  "Lomé":"洛美","Cotonou":"科托努","Porto-Novo":"波多諾伏",
+  "Niamey":"尼亞美","Ouagadougou":"瓦加杜古","Bangui":"班基",
+  "N'Djamena":"恩賈梅納","Bissau":"比紹","Banjul":"班珠爾",
+  "Praia":"培亞","Malabo":"馬拉博",
+  "Nairobi":"奈洛比","Addis Ababa":"阿迪斯阿貝巴",
+  "Dar es Salaam":"三蘭港","Kampala":"坎帕拉",
+  "Kigali":"吉佳利","Bujumbura":"布瓊布拉","Juba":"朱巴",
+  "Mogadishu":"摩加迪休","Djibouti":"吉布地市",
+  "Asmara":"阿斯馬拉","Antananarivo":"安塔那那利佛",
+  "Moroni":"莫羅尼","Victoria":"維多利亞",
+  "Kinshasa":"金夏沙","Brazzaville":"布拉薩維爾",
+  "Luanda":"羅安達","Yaoundé":"雅溫德","Libreville":"利伯維爾",
+  "São Tomé":"聖多美",
+  "Johannesburg":"約翰尼斯堡","Pretoria":"普利托利亞",
+  "Cape Town":"開普敦","Bloemfontein":"布隆方丹",
+  "Harare":"哈拉雷","Lusaka":"路沙卡","Maputo":"馬布多",
+  "Lilongwe":"里朗威","Gaborone":"嘉柏隆里","Windhoek":"溫得和克",
+  "Maseru":"馬塞魯","Mbabane":"姆巴班","Port Louis":"路易港",
+  "Washington, D.C.":"華盛頓","Washington":"華盛頓",
+  "New York":"紐約","Los Angeles":"洛杉磯","Chicago":"芝加哥",
+  "Houston":"休士頓","Dallas":"達拉斯","San Francisco":"舊金山",
+  "Miami":"邁阿密","Seattle":"西雅圖","Boston":"波士頓",
+  "Ottawa":"渥太華","Toronto":"多倫多","Montreal":"蒙特婁","Vancouver":"溫哥華",
+  "Mexico City":"墨西哥城","Guadalajara":"瓜達拉哈拉",
+  "Havana":"哈瓦那","Nassau":"拿索","Kingston":"金斯敦",
+  "Santo Domingo":"聖多明哥","Port-au-Prince":"太子港",
+  "Castries":"卡斯翠","Bridgetown":"橋鎮",
+  "Saint John's":"聖約翰斯","Saint George's":"聖喬治",
+  "Basseterre":"巴斯特爾","Roseau":"羅梭","Kingstown":"金斯頓",
+  "Belmopan":"貝爾默潘","Guatemala City":"瓜地馬拉市",
+  "Tegucigalpa":"德古西加巴","San Salvador":"聖薩爾瓦多",
+  "Managua":"馬拿瓜","San José":"聖荷西","Panama City":"巴拿馬城",
+  "Bogota":"波哥大","Bogotá":"波哥大","Caracas":"卡拉卡斯",
+  "Lima":"利馬","Quito":"基多","Santiago":"聖地牙哥",
+  "Buenos Aires":"布宜諾斯艾利斯","Montevideo":"蒙特維多",
+  "Asunción":"亞松森","Asuncion":"亞松森",
+  "La Paz":"拉巴斯","Sucre":"蘇克雷",
+  "Brasília":"巴西利亞","Brasilia":"巴西利亞",
+  "Rio de Janeiro":"里約熱內盧","São Paulo":"聖保羅",
+  "Paramaribo":"帕拉馬里博","Georgetown":"喬治城",
+  "Canberra":"坎培拉","Sydney":"雪梨","Melbourne":"墨爾本",
+  "Wellington":"威靈頓","Auckland":"奧克蘭",
+  "Port Moresby":"莫士比港","Suva":"蘇瓦","Honiara":"荷尼阿拉",
+  "Port Vila":"維拉港","Apia":"阿皮亞","Nuku'alofa":"努庫阿洛法",
+  "Tarawa":"塔拉瓦","Majuro":"馬朱羅","Funafuti":"富納富提",
+  "Palikir":"帕利基爾","Melekeok":"梅萊凱奧克",
+  "Port-of-Spain":"西班牙港"
+};
+    var capLg=svgEl.append("g").attr("class","city-lg").attr("pointer-events","none")
+      .style("display",LS.cities?null:"none");
+    if(cityData&&cityData.features){
+      var caps=cityData.features.filter(function(f){
+        return f.properties.featurecla==="Admin-0 capital"&&!f.properties.capalt;
+      });
+      caps.forEach(function(f){
+        var enName=f.properties.name;
+        var zhName=CITY_ZH[enName]; if(!zhName) return;
+        var coords=proj(f.geometry.coordinates);
+        if(!coords||!isFinite(coords[0])||!isFinite(coords[1])) return;
+        var pop=f.properties.pop_max||0;
+        var g=capLg.append("g").attr("class","clb-g")
+          .attr("data-ox",coords[0]).attr("data-oy",coords[1])
+          .attr("data-pop",pop)
+          .attr("transform","translate("+coords[0]+","+coords[1]+")")
+          .style("display",pop>=1e6?null:"none");
+        g.append("text").attr("class","clb")
+          .attr("text-anchor","middle").attr("dy","-4")
+          .attr("font-size",8).text(zhName);
+      });
+    }
+
+    document.getElementById("ldg").style.display="none";
+    updBdg();
     renderLearn();
 
   }catch(err){
+    console.error("initMap error:",err);
     document.getElementById("ldg").innerHTML=
-      '<span style="color:#e05555;text-align:center;padding:16px">地圖載入失敗<br><small>請確認網路後重新整理</small></span>';
-    console.error(err);
+      '<span style="color:#e05555;text-align:center;padding:16px">地圖載入失敗<br>'
+      +'<small style="color:#8ab0c8">'+err.message+'</small><br><br>'
+      +'<button onclick="initMap()" style="padding:6px 14px;border:1px solid rgba(255,255,255,.2);'
+      +'background:rgba(255,255,255,.08);color:#e8e0d0;border-radius:6px;cursor:pointer;'
+      +'font-size:12px">重新載入</button></span>';
   }
 }
 
