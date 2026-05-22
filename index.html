@@ -375,6 +375,13 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
   #tip{top:56px!important;bottom:auto!important;
     left:50%!important;transform:translateX(-50%);
     white-space:normal;max-width:240px;text-align:center}
+
+  /* Quiz mode: 50vh panel so map stays visible above */
+  #panel.quiz-mode.mob-open{max-height:50vh}
+  #panel.quiz-mode .qbody{padding:8px 12px;gap:7px}
+  #panel.quiz-mode .hint{display:none}
+  #panel.quiz-mode .ob{min-height:40px;padding:8px 12px}
+  #panel.quiz-mode .ob.flgo{min-height:50px;font-size:30px}
 }
 
 /* Extra small (iPhone SE etc.) */
@@ -773,14 +780,16 @@ function zoomTo(intId){
   if(!bounds||!isFinite(bounds[0][0])) return;
   var bw=bounds[1][0]-bounds[0][0], bh=bounds[1][1]-bounds[0][1];
   var cx=(bounds[0][0]+bounds[1][0])/2, cy=(bounds[0][1]+bounds[1][1])/2;
-  var sc=Math.max(1.0, Math.min(40,0.78/Math.max(bw/W,bh/H)));
-  /* 找最近的世界副本 */
+  /* 手機測驗時：可見地圖為上半部（下半為答題面板），縮放時就為上半居中 */
+  var visH=(isMob()&&S.q&&S.q.active)?H*0.48:H;
+  var sc=Math.max(1.0,Math.min(40,0.78/Math.max(bw/W,bh/visH)));
+  var tgtY=visH/2;
   var curT=d3.zoomTransform(svgEl.node());
   var viewCx=(W/2-curT.x)/curT.k;
   var n=Math.round((viewCx-cx)/W);
   var adjCx=cx+n*W;
   svgEl.transition().duration(600)
-    .call(zbeh.transform,d3.zoomIdentity.translate(W/2-sc*adjCx,H/2-sc*cy).scale(sc));
+    .call(zbeh.transform,d3.zoomIdentity.translate(W/2-sc*adjCx,tgtY-sc*cy).scale(sc));
 }
 
 function resetZoom(){
@@ -923,6 +932,7 @@ function renderQSetup(){
     +'</div></div>'
     +'<button class="startb" onclick="startQuiz()">▶ 開始測驗</button></div>';
   S.q.type="mixed"; S.q.region="all";
+  document.getElementById("panel").classList.remove("quiz-mode");
   openMob();
 }
 function pickQt(btn,v){document.querySelectorAll("[data-qt]").forEach(function(b){b.classList.remove("pk");});btn.classList.add("pk");S.q.type=v;}
@@ -989,6 +999,7 @@ function renderQ(){
       +'" onclick="handleAns('+opt.id+')">'+optTxt(opt,q.qType)+'</button>';
   }).join("");
   openMob();
+  document.getElementById("panel").classList.add("quiz-mode");
   document.getElementById("pb").innerHTML=
     '<div class="qhdr"><div class="sc"><span class="scn">'+q.correct+'</span> / '+q.total+'</div>'
     +strkH+'<button class="quitb" onclick="quitQuiz()">結束</button></div>'
@@ -1023,6 +1034,7 @@ function handleAns(selId){
 }
 function quitQuiz(){
   var q=S.q;S.q.active=false;rcolor();resetZoom();
+  document.getElementById("panel").classList.remove("quiz-mode");
   /* 恢復測驗前的標籤狀態 */
   if(_quizSaved){
     if(_quizSaved.showLabels!==showLabels){
@@ -1066,9 +1078,16 @@ async function initMap(){
      n0 算法：根據 viewport 位置計算三個 tile 應在的「世界索引」
      ─────────────────────────────────────────────────────────────── */
   zbeh=d3.zoom()
-    .scaleExtent([1,50])          /* 最小 1x：世界恰好填滿 viewport，永不出現重複國家 */
+    .scaleExtent([1,50])
     .extent([[0,0],[W,H]])
-    .translateExtent([[-Infinity,-H*0.3],[Infinity,H*1.3]])
+    /* constrain: hard-clamp vertical movement.
+       At scale k the world is k*H px tall. Keep it inside viewport.
+       tol=80 handles Mercator pole clipping & projection offset.    */
+    .constrain(function(t){
+      var k=t.k, tol=80;
+      var ty=Math.max(H*(1-k)-tol, Math.min(tol, t.y));
+      return d3.zoomIdentity.translate(t.x, ty).scale(k);
+    })
     .on("zoom",function(e){
       var k=e.transform.k,tx=e.transform.x,ty=e.transform.y,kW=k*W;
       var n0=Math.floor(-tx/kW)-1;
