@@ -280,6 +280,106 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
 ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2)}
+
+/* ═══════════ MOB HANDLE (always in DOM) ═══════════ */
+.mob-handle{display:none;padding:10px 0 6px;cursor:grab;flex-shrink:0;
+  border-bottom:1px solid rgba(255,255,255,.06)}
+.mob-handle-bar{width:36px;height:4px;border-radius:2px;
+  background:rgba(255,255,255,.2);margin:0 auto}
+#mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);
+  z-index:195;backdrop-filter:blur(3px);-webkit-backdrop-filter:blur(3px)}
+#mob-overlay.show{display:block}
+
+/* ═══════════ MOBILE ≤768px ═══════════ */
+@media(max-width:768px){
+  /* Header */
+  header{height:46px;padding:0 14px}
+  .logo{font-size:13px}
+  .logo span{display:none}
+  .tab{padding:5px 13px;font-size:11px}
+
+  /* Region bar */
+  .rbar{padding:5px 10px;gap:4px}
+  .rp{padding:3px 10px;font-size:10.5px}
+
+  /* Layout: map fills all */
+  .main{position:relative}
+  #mwrap{flex:1;min-height:0}
+  #mwrap,#mwrap:active{cursor:default}
+
+  /* Panel → bottom sheet */
+  #panel{position:fixed;bottom:0;left:0;right:0;width:100%;max-height:80vh;
+    min-height:0;transform:translateY(110%);
+    transition:transform .32s cubic-bezier(.32,.72,0,1);
+    z-index:200;border-radius:18px 18px 0 0;border-left:none;
+    border-top:1px solid rgba(255,255,255,.12);
+    box-shadow:0 -8px 40px rgba(0,0,0,.6);overflow:hidden;
+    display:flex;flex-direction:column}
+  #panel.mob-open{transform:translateY(0)}
+  #pb{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+
+  /* Show handle on mobile */
+  .mob-handle{display:block}
+
+  /* Layers panel: repositioned to bottom-left */
+  #layers-wrap{top:auto;bottom:20px;left:12px;min-width:106px}
+  .lbtn{padding:5px 9px;font-size:10.5px;min-height:34px}
+  .lbtn-sm{width:28px;height:28px}
+
+  /* Panel tabs */
+  .ptab{padding:10px 4px;font-size:11px}
+
+  /* Info card */
+  .flag-big{font-size:66px}
+  .name-zh{font-size:22px}
+  .info-body{padding:12px 14px;gap:12px}
+  .info-val{font-size:13px}
+
+  /* Quiz options: full width (1 column), big touch targets */
+  .ogrid{grid-template-columns:1fr}
+  .ob{min-height:48px;padding:12px 14px;text-align:left;font-size:13px;
+    display:flex;align-items:center}
+  .ob.flgo{justify-content:center;font-size:34px;min-height:60px}
+
+  /* Quiz header */
+  .qhdr{padding:11px 14px}
+  .scn{font-size:15px}
+  .qtxt{font-size:13px}
+
+  /* Touch-friendly buttons */
+  .nxtb{min-height:46px;font-size:13.5px}
+  .startb{min-height:46px;font-size:14px}
+  .ab{min-height:44px;font-size:13px}
+  .so{min-height:42px}
+  .cli{padding:10px}
+  .cli-nm{font-size:13.5px}
+  .quiz-here-btn{min-height:44px;font-size:13px}
+  .backb{min-height:36px}
+
+  /* Results */
+  .rsico{font-size:56px}
+  .rsscore{font-size:36px}
+
+  /* Search input */
+  .sinp{padding:10px 14px;font-size:13px}
+
+  /* Empty state */
+  .empty .ico{font-size:48px}
+  .empty p{font-size:13.5px}
+
+  /* Tooltip: top instead of following cursor */
+  #tip{top:56px!important;bottom:auto!important;
+    left:50%!important;transform:translateX(-50%);
+    white-space:normal;max-width:240px;text-align:center}
+}
+
+/* Extra small (iPhone SE etc.) */
+@media(max-width:390px){
+  .tab{padding:5px 10px;font-size:10px}
+  .rp{font-size:10px;padding:3px 8px}
+  #layers-wrap{min-width:96px}
+  .lbtn{font-size:10px}
+}
 </style>
 </head>
 <body>
@@ -315,7 +415,11 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
     </div>
     <div class="ldg" id="ldg"><div class="spin"></div><span>載入地圖資料…</span></div>
   </div>
-  <div id="panel"></div>
+  <div id="mob-overlay" onclick="closeMob()"></div>
+  <div id="panel">
+    <div class="mob-handle" onclick="closeMob()"><div class="mob-handle-bar"></div></div>
+    <div id="pb"></div>
+  </div>
 </div>
 
 <script>
@@ -567,6 +671,7 @@ var S={
 var svgEl,proj,pfn,zbeh,gEl,W,H,showLabels=true;
 var tileRefs=[],tileOff=[]; /* 三拼貼動態位移 */
 var S_hovId=null; /* 目前 hover 的國家 ID */
+var _quizSaved=null; /* 測驗前的標籤狀態 */
 
 /* ── 核心修正：topojson ID 為帶前導零字串，用 +id 轉成整數查表 ── */
 function L(id){ return C[+id]||null; }
@@ -644,13 +749,28 @@ function zoomTo(intId){
   var g=geoms.find(function(x){return+x.id===intId;});
   if(!g) return;
   var feat=topojson.feature(S.worldData,g);
-  var bounds=pfn.bounds(feat);
+
+  /* 對 MultiPolygon（含海外領土的國家，如法國、美國、丹麥等），
+     只取面積最大的那塊多邊形（本土）做邊界計算，
+     避免縮放被法屬圭亞那、夏威夷、格陵蘭等拉偏             */
+  var targetFeat=feat;
+  if(feat.geometry&&feat.geometry.type==="MultiPolygon"){
+    var bestArea=-1, bestCoords=null;
+    feat.geometry.coordinates.forEach(function(coords){
+      var tmp={type:"Feature",geometry:{type:"Polygon",coordinates:coords}};
+      var area=Math.abs(pfn.area(tmp));
+      if(area>bestArea){bestArea=area;bestCoords=coords;}
+    });
+    if(bestCoords)
+      targetFeat={type:"Feature",geometry:{type:"Polygon",coordinates:bestCoords}};
+  }
+
+  var bounds=pfn.bounds(targetFeat);
   if(!bounds||!isFinite(bounds[0][0])) return;
   var bw=bounds[1][0]-bounds[0][0], bh=bounds[1][1]-bounds[0][1];
   var cx=(bounds[0][0]+bounds[1][0])/2, cy=(bounds[0][1]+bounds[1][1])/2;
   var sc=Math.max(1.0, Math.min(40,0.78/Math.max(bw/W,bh/H)));
-  /* 找最近的世界副本：依據目前螢幕中心位置決定跳往哪個副本
-     避免在左右滑動後跳回原始世界（0~W 投影座標）              */
+  /* 找最近的世界副本 */
   var curT=d3.zoomTransform(svgEl.node());
   var viewCx=(W/2-curT.x)/curT.k;
   var n=Math.round((viewCx-cx)/W);
@@ -715,12 +835,12 @@ function tabsH(){
 function renderLearn(){
   if(S.lview==="list"){
     var pool=getPool(S.region).sort(function(a,b){return a.d[0].localeCompare(b.d[0],"zh");});
-    document.getElementById("panel").innerHTML=tabsH()
+    document.getElementById("pb").innerHTML=tabsH()
       +'<div class="list-wrap"><div class="sinp-wrap">'
       +'<input class="sinp" type="text" placeholder="搜尋國家名稱…" oninput="filterList(this.value)"></div>'
       +'<div class="clist" id="clist">'+listH(pool)+'</div></div>';
   } else {
-    document.getElementById("panel").innerHTML=tabsH()
+    document.getElementById("pb").innerHTML=tabsH()
       +'<div class="empty"><div class="ico">🗺️</div>'
       +'<p>點擊地圖上的任何國家<br>即可放大並查看詳情</p>'
       +'<p style="font-size:11px;margin-top:8px;color:#3a5a78">滾輪縮放 · 拖曳移動<br>點擊自動放大至該國</p></div>';
@@ -748,7 +868,7 @@ function filterList(q){
 function showInfo(intId){
   var d=L(intId);
   if(!d){
-    document.getElementById("panel").innerHTML=tabsH()
+    document.getElementById("pb").innerHTML=tabsH()
       +'<div class="empty"><div class="ico">❓</div><p>此地區暫無資料</p></div>';
     return;
   }
@@ -756,7 +876,7 @@ function showInfo(intId){
   var backBtn=(S.lview==="list")
     ?'<button class="backb" onclick="goBackList()">← 回到清單</button>':"";
   var langs=d[4].map(function(l){return'<span class="lt">'+l+'</span>';}).join("");
-  document.getElementById("panel").innerHTML=tabsH()
+  document.getElementById("pb").innerHTML=tabsH()
     +'<div class="info">'
     +'<div class="info-hero">'
     +backBtn
@@ -773,12 +893,13 @@ function showInfo(intId){
     +'<div class="dvd"></div>'
     +'<div class="info-footer"><button class="quiz-here-btn" onclick="quickQuiz('+intId+')">⚡ 測驗這個地區</button></div>'
     +'</div>';
+  openMob();
 }
 function goBackList(){ S.selId=null; rcolor(); resetZoom(); renderLearn(); }
 
 /* ── 測驗 ── */
 function renderQSetup(){
-  document.getElementById("panel").innerHTML=
+  document.getElementById("pb").innerHTML=
     '<div class="qsetup"><div class="qsetup-title">⚡ 測驗設定</div>'
     +'<div><div class="slbl">題目類型</div><div class="sopts">'
     +'<button class="so pk" data-qt="mixed" onclick="pickQt(this,\'mixed\')">🎲 混合模式（隨機）</button>'
@@ -806,7 +927,25 @@ function getPool(reg){
     .filter(function(e){return reg==="all"||e[1][5]===reg;})
     .map(function(e){return{id:+e[0],d:e[1]};});
 }
-function startQuiz(){S.q.active=true;S.q.correct=0;S.q.total=0;S.q.streak=0;nextQ();}
+function startQuiz(){
+  /* 儲存目前標籤狀態，測驗期間全關（讓使用者憑地形判斷）*/
+  _quizSaved={showLabels:showLabels, cities:LS.cities};
+  /* 關閉國名標籤 */
+  if(showLabels){
+    showLabels=false;
+    if(svgEl) svgEl.select(".lg").style("display","none");
+    var lb=document.getElementById("lblbtn");
+    if(lb) lb.classList.toggle("on",false);
+  }
+  /* 關閉首都名稱 */
+  if(LS.cities){
+    LS.cities=false;
+    if(svgEl) svgEl.select(".city-lg").style("display","none");
+    document.querySelectorAll("[data-layer='cities']").forEach(function(b){b.classList.toggle("on",false);});
+  }
+  S.q.active=true;S.q.correct=0;S.q.total=0;S.q.streak=0;
+  nextQ();
+}
 function quickQuiz(intId){
   setMode("quiz");
   setTimeout(function(){
@@ -844,7 +983,7 @@ function renderQ(){
     return'<button class="ob'+(q.qType==="flag"?" flgo":"")+'" data-oid="'+opt.id
       +'" onclick="handleAns('+opt.id+')">'+optTxt(opt,q.qType)+'</button>';
   }).join("");
-  document.getElementById("panel").innerHTML=
+  document.getElementById("pb").innerHTML=
     '<div class="qhdr"><div class="sc"><span class="scn">'+q.correct+'</span> / '+q.total+'</div>'
     +strkH+'<button class="quitb" onclick="quitQuiz()">結束</button></div>'
     +'<div class="pgbar"><div class="pgfill" style="width:'+pct+'%"></div></div>'
@@ -878,8 +1017,23 @@ function handleAns(selId){
 }
 function quitQuiz(){
   var q=S.q;S.q.active=false;rcolor();resetZoom();
+  /* 恢復測驗前的標籤狀態 */
+  if(_quizSaved){
+    if(_quizSaved.showLabels!==showLabels){
+      showLabels=_quizSaved.showLabels;
+      if(svgEl) svgEl.select(".lg").style("display",showLabels?null:"none");
+      var lb=document.getElementById("lblbtn");
+      if(lb) lb.classList.toggle("on",showLabels);
+    }
+    if(_quizSaved.cities!==LS.cities){
+      LS.cities=_quizSaved.cities;
+      if(svgEl) svgEl.select(".city-lg").style("display",LS.cities?null:"none");
+      document.querySelectorAll("[data-layer='cities']").forEach(function(b){b.classList.toggle("on",LS.cities);});
+    }
+    _quizSaved=null;
+  }
   var pct=q.total>0?Math.round(q.correct/q.total*100):0;
-  document.getElementById("panel").innerHTML=
+  document.getElementById("pb").innerHTML=
     '<div class="rspanel"><div class="rsico">'+(pct>=80?"🏆":pct>=50?"😊":"💪")+'</div>'
     +'<div class="rsscore">'+q.correct+' / '+q.total+'</div>'
     +'<div class="rspct">正確率 '+pct+'%</div>'
@@ -888,6 +1042,7 @@ function quitQuiz(){
     +'<button class="ab prim" onclick="renderQSetup()">再次測驗</button>'
     +'<button class="ab sec" onclick="setMode(\'learn\')">← 回到學習模式</button>'
     +'</div></div>';
+  openMob();
 }
 
 /* ── 地圖初始化 ── */
@@ -1290,6 +1445,37 @@ async function initMap(){
   }
 }
 
+
+/* ══════════ MOBILE PANEL (BOTTOM SHEET) ══════════ */
+function isMob(){return window.innerWidth<=768;}
+
+function openMob(){
+  if(!isMob()) return;
+  document.getElementById("panel").classList.add("mob-open");
+  document.getElementById("mob-overlay").classList.add("show");
+}
+function closeMob(){
+  document.getElementById("panel").classList.remove("mob-open");
+  document.getElementById("mob-overlay").classList.remove("show");
+}
+
+/* Swipe-to-dismiss panel */
+(function(){
+  var el=document.getElementById("panel");
+  var startY=0, dy=0, dragging=false;
+  el.addEventListener("touchstart",function(e){
+    startY=e.touches[0].clientY; dy=0; dragging=true;
+  },{passive:true});
+  el.addEventListener("touchmove",function(e){
+    if(!dragging) return;
+    dy=e.touches[0].clientY-startY;
+    if(dy>0) el.style.transform="translateY("+dy+"px)";
+  },{passive:true});
+  el.addEventListener("touchend",function(){
+    dragging=false; el.style.transform="";
+    if(dy>80) closeMob();
+  },{passive:true});
+})();
 window.addEventListener("load",function(){
   requestAnimationFrame(function(){ requestAnimationFrame(initMap); });
 });
