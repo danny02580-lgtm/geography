@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>世界地理學習地圖</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/7.8.5/d3.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/topojson/3.0.2/topojson.min.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Segoe UI',system-ui,-apple-system,sans-serif;background:#0c1622;color:#e8e0d0;height:100vh;display:flex;flex-direction:column;overflow:hidden}
+/* ── Header ── */
+header{display:flex;align-items:center;justify-content:space-between;padding:10px 18px;background:linear-gradient(90deg,#182540,#1c2e4a);border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0}
+.logo{font-size:15px;font-weight:700;color:#e8c870;display:flex;align-items:center;gap:8px}
+.logo span{font-size:11px;font-weight:400;color:#5a8aaa}
+.tabs{display:flex;background:rgba(0,0,0,.25);border-radius:10px;padding:3px;gap:2px;border:1px solid rgba(255,255,255,.06)}
+.tab{padding:6px 16px;border-radius:7px;border:none;background:transparent;color:#5a8aaa;font-size:13px;cursor:pointer;font-family:inherit;transition:all .25s}
+.tab.on{background:linear-gradient(135deg,#d4a340,#c48840);color:#0c1622;font-weight:700;box-shadow:0 2px 10px rgba(200,144,80,.45)}
+/* ── Region bar ── */
+.rbar{display:flex;align-items:center;gap:5px;padding:7px 18px;background:#101e30;border-bottom:1px solid rgba(255,255,255,.07);overflow-x:auto;flex-shrink:0}
+.rp{padding:4px 12px;border-radius:20px;border:1px solid rgba(255,255,255,.09);background:transparent;color:#5a8aaa;font-size:11px;cursor:pointer;font-family:inherit;white-space:nowrap;transition:all .2s}
+.rp.on{border-color:#c89050;color:#f0d090;background:rgba(200,144,80,.12)}
+.rp:hover:not(.on){border-color:rgba(255,255,255,.2);color:#e8e0d0}
+.cnt{margin-left:auto;font-size:10px;color:#3a5a78;padding:2px 8px;border:1px solid rgba(255,255,255,.07);border-radius:10px;white-space:nowrap;flex-shrink:0}
+/* ── Map ── */
+.main{display:flex;flex:1;overflow:hidden}
+#mwrap{flex:1;position:relative;overflow:hidden;background:#183858;cursor:grab}
+#mwrap:active{cursor:grabbing}
+#msvg{width:100%;height:100%;display:block}
+/* 紅色虛線：hover 和 sel 均使用虛線，vector-effect 保持固定螢幕像素 */
+.cp{stroke:none;cursor:pointer;transition:opacity .3s,filter .15s;vector-effect:non-scaling-stroke}
+.cp.hov{stroke:#e84040;stroke-width:1.8;stroke-dasharray:5 3;filter:brightness(1.2)}
+.cp.sel{stroke:#ff3030;stroke-width:2;stroke-dasharray:6 3}
+.cp.hl{stroke:#ff7030;stroke-width:2.2}
+.cp.dim{opacity:.12}
+/* ── Tooltip ── */
+#tip{position:absolute;background:rgba(12,22,36,.96);border:1px solid rgba(255,255,255,.14);border-radius:10px;padding:8px 14px;font-size:12px;color:#e8e0d0;pointer-events:none;opacity:0;transition:opacity .12s;z-index:50;white-space:nowrap;box-shadow:0 4px 20px rgba(0,0,0,.6),0 0 0 1px rgba(255,255,255,.03);backdrop-filter:blur(8px)}
+/* ── Map buttons ── */
+.map-btns{position:absolute;bottom:14px;left:14px;z-index:40;display:flex;gap:6px}
+.mapbtn{background:rgba(10,20,34,.9);border:1px solid rgba(255,255,255,.14);color:#7aaac8;font-size:11px;padding:6px 13px;border-radius:20px;cursor:pointer;font-family:inherit;transition:all .2s;backdrop-filter:blur(8px);box-shadow:0 2px 10px rgba(0,0,0,.45)}
+.mapbtn:hover{color:#e8e0d0;border-color:rgba(255,255,255,.28);background:rgba(20,38,60,.92)}
+.mapbtn.off{opacity:.45;color:#3a5a78}
+/* ── Panel ── */
+#panel{width:300px;flex-shrink:0;border-left:1px solid rgba(255,255,255,.07);background:#111e2e;display:flex;flex-direction:column;overflow:hidden}
+.ptabs{display:flex;border-bottom:1px solid rgba(255,255,255,.08);flex-shrink:0;background:#172538}
+.ptab{flex:1;padding:10px 6px;border:none;border-bottom:2px solid transparent;background:transparent;color:#5a8aaa;font-size:12px;cursor:pointer;font-family:inherit;transition:all .2s}
+.ptab.on{color:#f0d090;border-bottom-color:#c89050}
+.ptab:hover:not(.on){color:#e8e0d0}
+/* ── Loading ── */
+.ldg{display:flex;flex-direction:column;align-items:center;justify-content:center;position:absolute;inset:0;gap:14px;color:#5a8aaa;font-size:13px;background:#183858;z-index:30}
+.spin{width:32px;height:32px;border:2.5px solid rgba(255,255,255,.1);border-top-color:#c89050;border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+/* ── Empty state ── */
+.empty{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:24px;text-align:center;color:#3a5a78}
+.empty .ico{font-size:40px;opacity:.28}
+.empty p{font-size:13px;line-height:1.65}
+/* ── Country info card ── */
+.info{flex:1;overflow-y:auto;display:flex;flex-direction:column;animation:si .22s ease}
+@keyframes si{from{opacity:0;transform:translateX(8px)}to{opacity:1;transform:translateX(0)}}
+.info-hero{padding:20px 16px 14px;text-align:center;background:linear-gradient(180deg,#1e3252 0%,#111e2e 100%)}
+.flag-big{font-size:62px;line-height:1;margin-bottom:10px;filter:drop-shadow(0 4px 16px rgba(0,0,0,.55))}
+.name-zh{font-size:22px;font-weight:700;color:#f0d090;margin-bottom:3px}
+.name-en{font-size:11px;color:#5a8aaa;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:10px}
+.rgn-badge{display:inline-flex;align-items:center;padding:3px 12px;border-radius:12px;font-size:11px;font-weight:600}
+.info-body{padding:14px 16px;display:flex;flex-direction:column;gap:14px;flex:1}
+.info-row{display:flex;gap:12px;align-items:flex-start}
+.info-ico{font-size:16px;width:22px;flex-shrink:0;margin-top:1px}
+.info-lbl{font-size:10px;color:#3a5a78;text-transform:uppercase;letter-spacing:.9px;margin-bottom:3px}
+.info-val{font-size:14px;color:#e8e0d0;font-weight:500}
+.ltags{display:flex;flex-wrap:wrap;gap:5px;margin-top:4px}
+.lt{font-size:11px;padding:3px 10px;border-radius:10px;border:1px solid rgba(200,144,80,.28);color:#d4a840;background:rgba(200,144,80,.1)}
+.dvd{height:1px;background:rgba(255,255,255,.07)}
+.info-footer{padding:12px 16px 16px}
+.quiz-here-btn{width:100%;padding:10px;border-radius:9px;border:1px solid rgba(200,144,80,.28);background:rgba(200,144,80,.07);color:#d4a840;font-size:12px;cursor:pointer;font-family:inherit;transition:all .2s;display:flex;align-items:center;justify-content:center;gap:7px}
+.quiz-here-btn:hover{background:rgba(200,144,80,.18);border-color:rgba(200,144,80,.5);color:#f0c060}
+.backb{display:inline-flex;align-items:center;gap:5px;background:transparent;border:1px solid rgba(255,255,255,.1);color:#5a8aaa;font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;font-family:inherit;transition:all .2s;margin-bottom:4px}
+.backb:hover{color:#e8e0d0;border-color:rgba(255,255,255,.2)}
+/* ── List ── */
+.list-wrap{flex:1;display:flex;flex-direction:column;overflow:hidden}
+.sinp-wrap{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,.07);flex-shrink:0}
+.sinp{width:100%;padding:8px 12px;border-radius:8px;border:1px solid rgba(255,255,255,.1);background:rgba(255,255,255,.04);color:#e8e0d0;font-size:12px;font-family:inherit;outline:none;transition:all .2s}
+.sinp::placeholder{color:#3a5a78}
+.sinp:focus{border-color:#c89050;box-shadow:0 0 0 3px rgba(200,144,80,.12)}
+.clist{flex:1;overflow-y:auto;padding:5px}
+.cli{display:flex;align-items:center;gap:10px;padding:8px 10px;border-radius:8px;cursor:pointer;transition:background .12s}
+.cli:hover{background:rgba(255,255,255,.06)}
+.cli-fl{font-size:22px;flex-shrink:0;line-height:1}
+.cli-tx{flex:1;min-width:0}
+.cli-nm{font-size:13px;font-weight:500;color:#e8e0d0}
+.cli-sb{font-size:11px;color:#3a5a78;margin-top:1px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.cli-ar{color:#2a4a60;flex-shrink:0;font-size:14px}
+/* ── Quiz setup ── */
+.qsetup{flex:1;padding:16px;display:flex;flex-direction:column;gap:14px;overflow-y:auto}
+.qsetup-title{font-size:15px;font-weight:700;color:#f0d090}
+.slbl{font-size:10px;color:#3a5a78;text-transform:uppercase;letter-spacing:.9px;margin-bottom:7px}
+.sopts{display:flex;flex-direction:column;gap:5px}
+.so{padding:9px 13px;border:1px solid rgba(255,255,255,.08);border-radius:9px;background:rgba(255,255,255,.03);color:#5a8aaa;font-size:12px;cursor:pointer;font-family:inherit;text-align:left;display:flex;align-items:center;gap:9px;transition:all .15s}
+.so.pk{border-color:rgba(74,158,232,.45);color:#88c8f8;background:rgba(74,158,232,.1);box-shadow:0 0 0 1px rgba(74,158,232,.18)}
+.so:hover:not(.pk){border-color:rgba(255,255,255,.16);color:#e8e0d0;background:rgba(255,255,255,.05)}
+.startb{padding:11px;border-radius:9px;border:none;background:linear-gradient(135deg,#d4a340,#c48840);color:#0c1622;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit;margin-top:auto;transition:all .2s;box-shadow:0 4px 16px rgba(200,144,80,.35)}
+.startb:hover{box-shadow:0 6px 22px rgba(200,144,80,.55);transform:translateY(-1px)}
+.startb:active{transform:translateY(0)}
+/* ── Quiz question ── */
+.qhdr{padding:10px 14px;border-bottom:1px solid rgba(255,255,255,.07);display:flex;align-items:center;justify-content:space-between;flex-shrink:0;background:#172538}
+.sc{font-size:12px;color:#5a8aaa}
+.scn{font-weight:700;color:#e8e0d0;font-size:14px}
+.strk{font-size:11px;padding:2px 8px;border-radius:10px;background:rgba(255,200,60,.14);color:#ffcc3c;border:1px solid rgba(255,200,60,.2)}
+.quitb{border:1px solid rgba(255,255,255,.1);background:transparent;color:#5a8aaa;font-size:11px;padding:4px 10px;border-radius:6px;cursor:pointer;font-family:inherit;transition:all .2s}
+.quitb:hover{color:#f07070;border-color:rgba(240,112,112,.3)}
+.pgbar{height:3px;background:rgba(255,255,255,.06);flex-shrink:0}
+.pgfill{height:100%;background:linear-gradient(90deg,#c89050,#f0c060);transition:width .5s cubic-bezier(.4,0,.2,1);box-shadow:0 0 8px rgba(200,144,80,.55)}
+.qbody{flex:1;padding:14px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.qtlbl{font-size:10px;color:#3a5a78;text-transform:uppercase;letter-spacing:.9px}
+.qtxt{font-size:14px;font-weight:600;color:#e8e0d0;line-height:1.45}
+.hint{font-size:11px;color:#d48830;display:flex;align-items:center;gap:5px;padding:6px 9px;background:rgba(212,136,48,.08);border-radius:7px;border:1px solid rgba(212,136,48,.18)}
+.ogrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;align-content:start}
+.ob{padding:10px 8px;border:1px solid rgba(255,255,255,.1);border-radius:9px;background:rgba(255,255,255,.04);color:#e8e0d0;font-family:inherit;font-size:12px;cursor:pointer;text-align:center;line-height:1.35;transition:all .15s}
+.ob:hover:not(:disabled){border-color:rgba(200,144,80,.45);color:#f0d090;background:rgba(200,144,80,.12);box-shadow:0 0 0 1px rgba(200,144,80,.18)}
+.ob.flgo{font-size:30px;padding:13px 8px}
+.ob.ok{border-color:rgba(78,205,160,.45);background:rgba(78,205,160,.11);color:#5dd4a8;font-weight:600;box-shadow:0 0 0 1px rgba(78,205,160,.18)}
+.ob.ng{border-color:rgba(232,80,80,.45);background:rgba(232,80,80,.11);color:#f07070}
+.fb{padding:10px 12px;border-radius:9px;font-size:12px;display:flex;align-items:flex-start;gap:9px;line-height:1.45;animation:fb-in .2s ease}
+@keyframes fb-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
+.fb.ok{background:rgba(78,205,160,.09);border:1px solid rgba(78,205,160,.22);color:#5dd4a8}
+.fb.ng{background:rgba(232,80,80,.09);border:1px solid rgba(232,80,80,.22);color:#f07070}
+.nxtb{padding:9px;border:1px solid rgba(255,255,255,.12);border-radius:9px;background:rgba(255,255,255,.04);color:#e8e0d0;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s;width:100%;display:flex;align-items:center;justify-content:center;gap:6px}
+.nxtb:hover{background:rgba(200,144,80,.12);border-color:rgba(200,144,80,.4);color:#f0d090}
+/* ── Result ── */
+.rspanel{flex:1;padding:24px 18px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center}
+.rsico{font-size:50px;animation:pop .4s cubic-bezier(.34,1.56,.64,1)}
+@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+.rsscore{font-size:34px;font-weight:700;color:#f0d090}
+.rspct{font-size:13px;color:#5a8aaa}
+.rsmsg{font-size:14px;color:#e8e0d0;line-height:1.5}
+.actbtns{display:flex;flex-direction:column;gap:8px;width:100%;margin-top:10px}
+.ab{padding:10px;border-radius:9px;font-size:13px;cursor:pointer;font-family:inherit;transition:all .2s;width:100%}
+.ab.prim{background:linear-gradient(135deg,#d4a340,#c48840);border:none;color:#0c1622;font-weight:700;box-shadow:0 3px 12px rgba(200,144,80,.3)}
+.ab.prim:hover{box-shadow:0 5px 18px rgba(200,144,80,.5);transform:translateY(-1px)}
+.ab.sec{background:transparent;border:1px solid rgba(255,255,255,.1);color:#5a8aaa}
+.ab.sec:hover{color:#e8e0d0;border-color:rgba(255,255,255,.2)}
+/* ── Labels ── */
+.lb{fill:#fff;stroke:rgba(8,18,35,.95);stroke-width:2.8;paint-order:stroke;font-weight:600;font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;pointer-events:none}
+.lb.dim{opacity:.12}
+.wlbl{font-style:italic;paint-order:stroke;stroke:rgba(10,28,55,.88);stroke-width:2.5;pointer-events:none;font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;font-weight:300}
+.wlbl-ocean{fill:rgba(155,198,232,.82);letter-spacing:3px;font-size:15px}
+.wlbl-sea{fill:rgba(140,188,225,.78);letter-spacing:1.5px}
+.wlbl-lake{fill:rgba(130,180,220,.75);letter-spacing:.5px;font-style:normal;font-weight:400}
+::-webkit-scrollbar{width:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
+::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.18)}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">🗺️ 世界地理學習地圖 <span>Mercator 投影</span></div>
+  <div class="tabs">
+    <button class="tab on" id="tlearn" onclick="setMode('learn')">🎓 學習模式</button>
+    <button class="tab" id="tquiz" onclick="setMode('quiz')">⚡ 測驗模式</button>
+  </div>
+</header>
+<div class="rbar" id="rbar">
+  <button class="rp on" onclick="setRegion(this,'all')">🌍 全球</button>
+  <button class="rp" onclick="setRegion(this,'asia')">亞洲</button>
+  <button class="rp" onclick="setRegion(this,'europe')">歐洲</button>
+  <button class="rp" onclick="setRegion(this,'africa')">非洲</button>
+  <button class="rp" onclick="setRegion(this,'na')">北美洲</button>
+  <button class="rp" onclick="setRegion(this,'sa')">南美洲</button>
+  <button class="rp" onclick="setRegion(this,'oc')">大洋洲</button>
+  <span class="cnt" id="cntb">—</span>
+</div>
+<div class="main">
+  <div id="mwrap">
+    <svg id="msvg"></svg>
+    <div id="tip"></div>
+    <div class="map-btns">
+      <button class="mapbtn" onclick="resetZoom()">⊕ 全圖</button>
+      <button class="mapbtn" id="lblbtn" onclick="toggleLabels()">📍 國名標籤</button>
+    </div>
+    <div class="ldg" id="ldg"><div class="spin"></div><span>載入地圖資料…</span></div>
+  </div>
+  <div id="panel"></div>
+</div>
+
+<script>
+/* ══════════════════════════════════════════════════════════
+   重要：world-atlas topojson 的 ID 是帶前導零的字串
+   例如 "004"（阿富汗）、"032"（阿根廷）、"840"（美國）
+   所以查表必須用 parseInt(id, 10) 或 +id 把 "004" 轉成 4
+   這是先前版本所有「無資料」問題的根本原因
+   ══════════════════════════════════════════════════════════ */
+
+/* ── 國家資料（台灣外交部官方譯名）──────────────────────
+   格式：[中文名, 英文名, 國旗, 首都, [語言], 地區]
+   地區代號：asia / europe / africa / na / sa / oc            */
+var C = {
+  // 亞洲
+  4:  ["阿富汗","Afghanistan","🇦🇫","喀布爾",["普什圖語","達利語"],"asia"],
+  51: ["亞美尼亞","Armenia","🇦🇲","葉里溫",["亞美尼亞語"],"asia"],
+  31: ["亞塞拜然","Azerbaijan","🇦🇿","巴庫",["亞塞拜然語"],"asia"],
+  48: ["巴林","Bahrain","🇧🇭","麥納瑪",["阿拉伯語"],"asia"],
+  50: ["孟加拉","Bangladesh","🇧🇩","達卡",["孟加拉語"],"asia"],
+  64: ["不丹","Bhutan","🇧🇹","廷布",["宗卡語"],"asia"],
+  96: ["汶萊","Brunei","🇧🇳","斯里巴加灣市",["馬來語"],"asia"],
+  116:["柬埔寨","Cambodia","🇰🇭","金邊",["高棉語"],"asia"],
+  156:["中華人民共和國","China","🇨🇳","北京",["普通話"],"asia"],
+  268:["喬治亞","Georgia","🇬🇪","提比里斯",["喬治亞語"],"asia"],
+  356:["印度","India","🇮🇳","新德里",["印地語","英語"],"asia"],
+  360:["印尼","Indonesia","🇮🇩","雅加達",["印尼語"],"asia"],
+  364:["伊朗","Iran","🇮🇷","德黑蘭",["波斯語"],"asia"],
+  368:["伊拉克","Iraq","🇮🇶","巴格達",["阿拉伯語","庫德語"],"asia"],
+  376:["以色列","Israel","🇮🇱","耶路撒冷",["希伯來語","阿拉伯語"],"asia"],
+  392:["日本","Japan","🇯🇵","東京",["日語"],"asia"],
+  400:["約旦","Jordan","🇯🇴","安曼",["阿拉伯語"],"asia"],
+  398:["哈薩克","Kazakhstan","🇰🇿","阿斯塔納",["哈薩克語","俄語"],"asia"],
+  408:["北韓","North Korea","🇰🇵","平壤",["韓語"],"asia"],
+  410:["南韓","South Korea","🇰🇷","首爾",["韓語"],"asia"],
+  414:["科威特","Kuwait","🇰🇼","科威特市",["阿拉伯語"],"asia"],
+  417:["吉爾吉斯","Kyrgyzstan","🇰🇬","比什凱克",["吉爾吉斯語","俄語"],"asia"],
+  418:["寮國","Laos","🇱🇦","永珍",["寮語"],"asia"],
+  422:["黎巴嫩","Lebanon","🇱🇧","貝魯特",["阿拉伯語"],"asia"],
+  458:["馬來西亞","Malaysia","🇲🇾","吉隆坡",["馬來語"],"asia"],
+  496:["蒙古","Mongolia","🇲🇳","烏蘭巴托",["蒙古語"],"asia"],
+  104:["緬甸","Myanmar","🇲🇲","奈比多",["緬甸語"],"asia"],
+  524:["尼泊爾","Nepal","🇳🇵","加德滿都",["尼泊爾語"],"asia"],
+  512:["阿曼","Oman","🇴🇲","馬斯喀特",["阿拉伯語"],"asia"],
+  586:["巴基斯坦","Pakistan","🇵🇰","伊斯蘭馬巴德",["烏爾都語","英語"],"asia"],
+  275:["巴勒斯坦","Palestine","🇵🇸","拉馬拉",["阿拉伯語"],"asia"],
+  608:["菲律賓","Philippines","🇵🇭","馬尼拉",["菲律賓語","英語"],"asia"],
+  634:["卡達","Qatar","🇶🇦","多哈",["阿拉伯語"],"asia"],
+  682:["沙烏地阿拉伯","Saudi Arabia","🇸🇦","利雅德",["阿拉伯語"],"asia"],
+  144:["斯里蘭卡","Sri Lanka","🇱🇰","可倫坡",["僧伽羅語","泰米爾語"],"asia"],
+  760:["敘利亞","Syria","🇸🇾","大馬士革",["阿拉伯語"],"asia"],
+  762:["塔吉克","Tajikistan","🇹🇯","杜尚貝",["塔吉克語","俄語"],"asia"],
+  158:["臺灣","Taiwan","🇹🇼","臺北",["華語"],"asia"],
+  764:["泰國","Thailand","🇹🇭","曼谷",["泰語"],"asia"],
+  626:["東帝汶","Timor-Leste","🇹🇱","帝力",["德頓語","葡萄牙語"],"asia"],
+  792:["土耳其","Turkey","🇹🇷","安卡拉",["土耳其語"],"asia"],
+  795:["土庫曼","Turkmenistan","🇹🇲","阿什哈巴德",["土庫曼語"],"asia"],
+  784:["阿拉伯聯合大公國","UAE","🇦🇪","阿布達比",["阿拉伯語"],"asia"],
+  860:["烏茲別克","Uzbekistan","🇺🇿","塔什干",["烏茲別克語"],"asia"],
+  704:["越南","Vietnam","🇻🇳","河內",["越南語"],"asia"],
+  887:["葉門","Yemen","🇾🇪","薩那",["阿拉伯語"],"asia"],
+  // 歐洲
+  8:  ["阿爾巴尼亞","Albania","🇦🇱","地拉那",["阿爾巴尼亞語"],"europe"],
+  40: ["奧地利","Austria","🇦🇹","維也納",["德語"],"europe"],
+  112:["白俄羅斯","Belarus","🇧🇾","明斯克",["白俄羅斯語","俄語"],"europe"],
+  56: ["比利時","Belgium","🇧🇪","布魯塞爾",["荷蘭語","法語","德語"],"europe"],
+  70: ["波士尼亞與赫塞哥維納","Bosnia & Herzegovina","🇧🇦","塞拉耶佛",["波士尼亞語","塞爾維亞語"],"europe"],
+  100:["保加利亞","Bulgaria","🇧🇬","索非亞",["保加利亞語"],"europe"],
+  191:["克羅埃西亞","Croatia","🇭🇷","薩格勒布",["克羅埃西亞語"],"europe"],
+  196:["賽普勒斯","Cyprus","🇨🇾","尼科西亞",["希臘語","土耳其語"],"europe"],
+  203:["捷克","Czech Republic","🇨🇿","布拉格",["捷克語"],"europe"],
+  208:["丹麥","Denmark","🇩🇰","哥本哈根",["丹麥語"],"europe"],
+  233:["愛沙尼亞","Estonia","🇪🇪","塔林",["愛沙尼亞語"],"europe"],
+  246:["芬蘭","Finland","🇫🇮","赫爾辛基",["芬蘭語","瑞典語"],"europe"],
+  250:["法國","France","🇫🇷","巴黎",["法語"],"europe"],
+  276:["德國","Germany","🇩🇪","柏林",["德語"],"europe"],
+  300:["希臘","Greece","🇬🇷","雅典",["希臘語"],"europe"],
+  348:["匈牙利","Hungary","🇭🇺","布達佩斯",["匈牙利語"],"europe"],
+  352:["冰島","Iceland","🇮🇸","雷克雅維克",["冰島語"],"europe"],
+  372:["愛爾蘭","Ireland","🇮🇪","都柏林",["英語","愛爾蘭語"],"europe"],
+  380:["義大利","Italy","🇮🇹","羅馬",["義大利語"],"europe"],
+  428:["拉脫維亞","Latvia","🇱🇻","里加",["拉脫維亞語"],"europe"],
+  440:["立陶宛","Lithuania","🇱🇹","維爾紐斯",["立陶宛語"],"europe"],
+  442:["盧森堡","Luxembourg","🇱🇺","盧森堡市",["盧森堡語","法語","德語"],"europe"],
+  498:["摩爾多瓦","Moldova","🇲🇩","基希訥烏",["羅馬尼亞語"],"europe"],
+  499:["蒙特內哥羅","Montenegro","🇲🇪","波德戈里察",["蒙特內哥羅語"],"europe"],
+  528:["荷蘭","Netherlands","🇳🇱","阿姆斯特丹",["荷蘭語"],"europe"],
+  807:["北馬其頓","North Macedonia","🇲🇰","斯科普里",["馬其頓語","阿爾巴尼亞語"],"europe"],
+  578:["挪威","Norway","🇳🇴","奧斯陸",["挪威語"],"europe"],
+  616:["波蘭","Poland","🇵🇱","華沙",["波蘭語"],"europe"],
+  620:["葡萄牙","Portugal","🇵🇹","里斯本",["葡萄牙語"],"europe"],
+  642:["羅馬尼亞","Romania","🇷🇴","布加勒斯特",["羅馬尼亞語"],"europe"],
+  643:["俄羅斯","Russia","🇷🇺","莫斯科",["俄語"],"europe"],
+  688:["塞爾維亞","Serbia","🇷🇸","貝爾格勒",["塞爾維亞語"],"europe"],
+  703:["斯洛伐克","Slovakia","🇸🇰","布拉提斯拉瓦",["斯洛伐克語"],"europe"],
+  705:["斯洛維尼亞","Slovenia","🇸🇮","盧比安納",["斯洛維尼亞語"],"europe"],
+  724:["西班牙","Spain","🇪🇸","馬德里",["西班牙語"],"europe"],
+  752:["瑞典","Sweden","🇸🇪","斯德哥爾摩",["瑞典語"],"europe"],
+  756:["瑞士","Switzerland","🇨🇭","伯恩",["德語","法語","義大利語"],"europe"],
+  804:["烏克蘭","Ukraine","🇺🇦","基輔",["烏克蘭語"],"europe"],
+  826:["英國","United Kingdom","🇬🇧","倫敦",["英語"],"europe"],
+  // 非洲
+  12: ["阿爾及利亞","Algeria","🇩🇿","阿爾及爾",["阿拉伯語","柏柏爾語"],"africa"],
+  24: ["安哥拉","Angola","🇦🇴","羅安達",["葡萄牙語"],"africa"],
+  204:["貝南","Benin","🇧🇯","波多諾伏",["法語"],"africa"],
+  72: ["波扎那","Botswana","🇧🇼","嘉柏隆里",["英語","茨瓦納語"],"africa"],
+  854:["布吉納法索","Burkina Faso","🇧🇫","瓦加杜古",["法語"],"africa"],
+  108:["蒲隆地","Burundi","🇧🇮","吉特加",["基隆迪語","法語"],"africa"],
+  120:["喀麥隆","Cameroon","🇨🇲","雅溫得",["法語","英語"],"africa"],
+  140:["中非共和國","Central African Rep.","🇨🇫","班基",["法語","桑戈語"],"africa"],
+  148:["查德","Chad","🇹🇩","恩賈梅納",["法語","阿拉伯語"],"africa"],
+  174:["葛摩","Comoros","🇰🇲","莫洛尼",["葛摩語","阿拉伯語","法語"],"africa"],
+  180:["剛果民主共和國","DR Congo","🇨🇩","金夏沙",["法語"],"africa"],
+  178:["剛果共和國","Rep. of Congo","🇨🇬","布拉薩維爾",["法語"],"africa"],
+  384:["象牙海岸","Ivory Coast","🇨🇮","雅穆蘇克羅",["法語"],"africa"],
+  262:["吉布地","Djibouti","🇩🇯","吉布地市",["法語","阿拉伯語"],"africa"],
+  818:["埃及","Egypt","🇪🇬","開羅",["阿拉伯語"],"africa"],
+  226:["赤道幾內亞","Equatorial Guinea","🇬🇶","馬拉博",["西班牙語","法語"],"africa"],
+  232:["厄利垂亞","Eritrea","🇪🇷","阿斯馬拉",["提格利尼亞語","阿拉伯語"],"africa"],
+  748:["史瓦帝尼","Eswatini","🇸🇿","姆巴巴內",["英語","史瓦地語"],"africa"],
+  231:["衣索比亞","Ethiopia","🇪🇹","阿迪斯阿貝巴",["阿姆哈拉語"],"africa"],
+  266:["加彭","Gabon","🇬🇦","自由市",["法語"],"africa"],
+  270:["甘比亞","Gambia","🇬🇲","班竹",["英語"],"africa"],
+  288:["迦納","Ghana","🇬🇭","阿克拉",["英語"],"africa"],
+  324:["幾內亞","Guinea","🇬🇳","科納克里",["法語"],"africa"],
+  624:["幾內亞比索","Guinea-Bissau","🇬🇼","比索",["葡萄牙語"],"africa"],
+  404:["肯亞","Kenya","🇰🇪","奈洛比",["英語","史瓦希里語"],"africa"],
+  426:["賴索托","Lesotho","🇱🇸","馬塞魯",["英語","塞索托語"],"africa"],
+  430:["賴比瑞亞","Liberia","🇱🇷","蒙羅維亞",["英語"],"africa"],
+  434:["利比亞","Libya","🇱🇾","的黎波里",["阿拉伯語"],"africa"],
+  450:["馬達加斯加","Madagascar","🇲🇬","安塔那那利佛",["馬達加斯加語","法語"],"africa"],
+  454:["馬拉威","Malawi","🇲🇼","里朗威",["奇切瓦語","英語"],"africa"],
+  466:["馬利","Mali","🇲🇱","巴馬科",["法語"],"africa"],
+  478:["茅利塔尼亞","Mauritania","🇲🇷","努瓦克肖特",["阿拉伯語"],"africa"],
+  504:["摩洛哥","Morocco","🇲🇦","拉巴特",["阿拉伯語","柏柏爾語"],"africa"],
+  508:["莫三比克","Mozambique","🇲🇿","馬布多",["葡萄牙語"],"africa"],
+  516:["納米比亞","Namibia","🇳🇦","溫得和克",["英語"],"africa"],
+  562:["尼日","Niger","🇳🇪","尼亞美",["法語"],"africa"],
+  566:["奈及利亞","Nigeria","🇳🇬","阿布賈",["英語"],"africa"],
+  646:["盧安達","Rwanda","🇷🇼","吉佳利",["盧旺達語","法語","英語"],"africa"],
+  686:["塞內加爾","Senegal","🇸🇳","達卡",["法語"],"africa"],
+  694:["獅子山","Sierra Leone","🇸🇱","自由城",["英語"],"africa"],
+  706:["索馬利亞","Somalia","🇸🇴","摩加迪休",["索馬利語","阿拉伯語"],"africa"],
+  710:["南非","South Africa","🇿🇦","普利托利亞",["祖魯語","科薩語","英語"],"africa"],
+  728:["南蘇丹","South Sudan","🇸🇸","朱巴",["英語"],"africa"],
+  729:["蘇丹","Sudan","🇸🇩","喀土穆",["阿拉伯語","英語"],"africa"],
+  834:["坦尚尼亞","Tanzania","🇹🇿","杜篤瑪",["史瓦希里語","英語"],"africa"],
+  768:["多哥","Togo","🇹🇬","洛美",["法語"],"africa"],
+  788:["突尼西亞","Tunisia","🇹🇳","突尼斯",["阿拉伯語"],"africa"],
+  800:["烏干達","Uganda","🇺🇬","坎帕拉",["英語","史瓦希里語"],"africa"],
+  732:["西撒哈拉","Western Sahara","🇪🇭","拉約內",["阿拉伯語"],"africa"],
+  894:["尚比亞","Zambia","🇿🇲","路沙卡",["英語"],"africa"],
+  716:["辛巴威","Zimbabwe","🇿🇼","哈拉雷",["英語","修納語","恩德貝勒語"],"africa"],
+  // 北美洲
+  44: ["巴哈馬","Bahamas","🇧🇸","拿索",["英語"],"na"],
+  84: ["貝里斯","Belize","🇧🇿","貝爾墨潘",["英語"],"na"],
+  124:["加拿大","Canada","🇨🇦","渥太華",["英語","法語"],"na"],
+  188:["哥斯大黎加","Costa Rica","🇨🇷","聖荷西",["西班牙語"],"na"],
+  192:["古巴","Cuba","🇨🇺","哈瓦那",["西班牙語"],"na"],
+  214:["多明尼加","Dominican Republic","🇩🇴","聖多明哥",["西班牙語"],"na"],
+  222:["薩爾瓦多","El Salvador","🇸🇻","聖薩爾瓦多",["西班牙語"],"na"],
+  304:["格陵蘭（丹麥自治地）","Greenland","🇬🇱","努克",["格陵蘭語","丹麥語"],"na"],
+  320:["瓜地馬拉","Guatemala","🇬🇹","瓜地馬拉市",["西班牙語"],"na"],
+  332:["海地","Haiti","🇭🇹","太子港",["法語","克里奧爾語"],"na"],
+  340:["宏都拉斯","Honduras","🇭🇳","德古西加巴",["西班牙語"],"na"],
+  388:["牙買加","Jamaica","🇯🇲","京斯敦",["英語"],"na"],
+  484:["墨西哥","Mexico","🇲🇽","墨西哥城",["西班牙語"],"na"],
+  558:["尼加拉瓜","Nicaragua","🇳🇮","馬拿瓜",["西班牙語"],"na"],
+  591:["巴拿馬","Panama","🇵🇦","巴拿馬市",["西班牙語"],"na"],
+  630:["波多黎各（美屬）","Puerto Rico","🇵🇷","聖胡安",["西班牙語","英語"],"na"],
+  780:["千里達及托巴哥","Trinidad and Tobago","🇹🇹","西班牙港",["英語"],"na"],
+  840:["美國","United States","🇺🇸","華盛頓特區",["英語"],"na"],
+  // 南美洲
+  32: ["阿根廷","Argentina","🇦🇷","布宜諾斯艾利斯",["西班牙語"],"sa"],
+  68: ["玻利維亞","Bolivia","🇧🇴","蘇克雷",["西班牙語","克丘亞語","艾馬拉語"],"sa"],
+  76: ["巴西","Brazil","🇧🇷","巴西利亞",["葡萄牙語"],"sa"],
+  152:["智利","Chile","🇨🇱","聖地牙哥",["西班牙語"],"sa"],
+  170:["哥倫比亞","Colombia","🇨🇴","波哥大",["西班牙語"],"sa"],
+  218:["厄瓜多","Ecuador","🇪🇨","基多",["西班牙語"],"sa"],
+  238:["福克蘭群島（英屬）","Falkland Islands","🇫🇰","斯坦利港",["英語"],"sa"],
+  328:["蓋亞那","Guyana","🇬🇾","喬治敦",["英語"],"sa"],
+  600:["巴拉圭","Paraguay","🇵🇾","亞松森",["西班牙語","瓜拉尼語"],"sa"],
+  604:["秘魯","Peru","🇵🇪","利馬",["西班牙語","克丘亞語"],"sa"],
+  740:["蘇利南","Suriname","🇸🇷","帕拉馬里博",["荷蘭語"],"sa"],
+  858:["烏拉圭","Uruguay","🇺🇾","蒙特維多",["西班牙語"],"sa"],
+  862:["委內瑞拉","Venezuela","🇻🇪","卡拉卡斯",["西班牙語"],"sa"],
+  // 大洋洲
+  36: ["澳大利亞","Australia","🇦🇺","坎培拉",["英語"],"oc"],
+  242:["斐濟","Fiji","🇫🇯","蘇瓦",["英語","斐濟語"],"oc"],
+  296:["吉里巴斯","Kiribati","🇰🇮","南塔拉瓦",["英語","吉里巴斯語"],"oc"],
+  584:["馬紹爾群島","Marshall Islands","🇲🇭","馬久羅",["英語","馬紹爾語"],"oc"],
+  583:["密克羅尼西亞","Micronesia","🇫🇲","帕利基爾",["英語"],"oc"],
+  520:["諾魯","Nauru","🇳🇷","亞倫",["諾魯語","英語"],"oc"],
+  540:["新喀里多尼亞（法屬）","New Caledonia","🇳🇨","努美阿",["法語"],"oc"],
+  554:["紐西蘭","New Zealand","🇳🇿","威靈頓",["英語","毛利語"],"oc"],
+  585:["帛琉","Palau","🇵🇼","恩捷魯姆德",["英語","帛琉語"],"oc"],
+  598:["巴布亞紐幾內亞","Papua New Guinea","🇵🇬","莫士比港",["英語","托克皮辛語"],"oc"],
+  882:["薩摩亞","Samoa","🇼🇸","阿皮亞",["薩摩亞語","英語"],"oc"],
+  90: ["索羅門群島","Solomon Islands","🇸🇧","荷尼阿拉",["英語"],"oc"],
+  776:["東加","Tonga","🇹🇴","努瓜婁發",["東加語","英語"],"oc"],
+  548:["萬那杜","Vanuatu","🇻🇺","維拉港",["英語","法語","比斯拉馬語"],"oc"],
+  // 小島國補充（50m 解析度新增）
+  28: ["安地卡及巴布達","Antigua & Barbuda","🇦🇬","聖約翰",["英語"],"na"],
+  52: ["巴貝多","Barbados","🇧🇧","橋鎮",["英語"],"na"],
+  132:["維德角","Cabo Verde","🇨🇻","培亞",["葡萄牙語"],"africa"],
+  212:["多米尼克","Dominica","🇩🇲","羅索",["英語"],"na"],
+  308:["格瑞那達","Grenada","🇬🇩","聖喬治",["英語"],"na"],
+  344:["香港","Hong Kong","🇭🇰","香港",["中文","英語"],"asia"],
+  462:["馬爾地夫","Maldives","🇲🇻","馬列",["迪維希語"],"asia"],
+  470:["馬爾他","Malta","🇲🇹","瓦萊塔",["馬爾他語","英語"],"europe"],
+  480:["模里西斯","Mauritius","🇲🇺","路易港",["英語","法語","克里奧爾語"],"africa"],
+  336:["梵蒂岡","Vatican City","🇻🇦","梵蒂岡城",["拉丁語","義大利語"],"europe"],
+  674:["聖馬利諾","San Marino","🇸🇲","聖馬利諾市",["義大利語"],"europe"],
+  678:["聖多美普林西比","São Tomé & Príncipe","🇸🇹","聖多美",["葡萄牙語"],"africa"],
+  690:["塞席爾","Seychelles","🇸🇨","維多利亞",["克里奧爾語","英語","法語"],"africa"],
+  659:["聖克里斯多福及尼維斯","St. Kitts & Nevis","🇰🇳","巴斯特爾",["英語"],"na"],
+  662:["聖露西亞","Saint Lucia","🇱🇨","卡斯翠",["英語"],"na"],
+  670:["聖文森及格瑞那丁","St. Vincent & Grenadines","🇻🇨","金斯敦",["英語"],"na"],
+  702:["新加坡","Singapore","🇸🇬","新加坡",["英語","馬來語","普通話","泰米爾語"],"asia"]
+};
+
+var RCOL={asia:"#c09060",europe:"#6898b8",africa:"#c8a040",na:"#68aa86",sa:"#509e70",oc:"#ba7860"};
+var RLB={all:"全球",asia:"亞洲",europe:"歐洲",africa:"非洲",na:"北美洲",sa:"南美洲",oc:"大洋洲"};
+
+var S={
+  mode:"learn",lview:"map",region:"all",selId:null,worldData:null,
+  q:{active:false,region:"all",type:"mixed",qType:null,curId:null,
+     opts:[],answered:false,correct:0,total:0,streak:0}
+};
+var svgEl,proj,pfn,zbeh,gEl,W,H,showLabels=true;
+
+/* ── 核心修正：topojson ID 為帶前導零字串，用 +id 轉成整數查表 ── */
+function L(id){ return C[+id]||null; }
+
+function gcf(id){ var d=L(id); return d?(RCOL[d[5]]||"#7a8a90"):"#506070"; }
+
+function rcolor(){
+  if(!gEl) return;
+  var isQ=S.mode==="quiz"&&S.q.active;
+  gEl.selectAll(".cp").each(function(d){
+    var el=d3.select(this);
+    var id=+d.id;
+    if(isQ){
+      var cur=id===S.q.curId;
+      el.attr("fill",cur?"#ff6820":"#243040").attr("opacity",cur?1:0.22)
+        .classed("hl",cur).classed("dim",!cur).classed("sel",false);
+    } else {
+      var cd=L(d.id);
+      var inR=S.region==="all"||(cd&&cd[5]===S.region);
+      el.attr("fill",inR?gcf(d.id):"#243040").attr("opacity",inR?1:0.2)
+        .classed("dim",!inR).classed("sel",id===S.selId).classed("hl",false);
+    }
+  });
+  /* 測驗模式：完全隱藏所有標籤，避免答案外洩 */
+  if(svgEl){
+    var lgEl=svgEl.select(".lg");
+    if(!lgEl.empty()){
+      if(isQ){
+        lgEl.style("display","none");
+      } else {
+        lgEl.style("display",showLabels?null:"none");
+        if(showLabels){
+          lgEl.selectAll(".lb-g").each(function(){
+            var id=+this.getAttribute("data-id");
+            var cd=L(id);
+            var inR=S.region==="all"||(cd&&cd[5]===S.region);
+            d3.select(this).select("text").classed("dim",!inR);
+          });
+        }
+      }
+    }
+  }
+}
+
+/* ── Tooltip ── */
+function showTip(e,d){
+  if(S.mode==="quiz"&&S.q.active) return;  // 測驗時不顯示國家名
+  var cd=L(d.id); if(!cd) return;
+  var t=document.getElementById("tip");
+  t.innerHTML=cd[2]+" <strong>"+cd[0]+"</strong> <span style='color:#7a9ab0;font-size:10px'>首都："+cd[3]+"</span>";
+  t.style.opacity="1";
+}
+function mvTip(e){
+  var r=document.getElementById("mwrap").getBoundingClientRect();
+  var x=e.clientX-r.left+14,y=e.clientY-r.top-44;
+  if(x+230>r.width)x-=245; if(y<4)y=e.clientY-r.top+14;
+  var t=document.getElementById("tip"); t.style.left=x+"px"; t.style.top=y+"px";
+}
+function hideTip(){document.getElementById("tip").style.opacity="0";}
+
+/* ── 點擊與縮放 ── */
+function onCC(id){
+  if(S.mode==="learn"){ S.selId=+id; rcolor(); zoomTo(+id); showInfo(+id); }
+}
+function selFromList(id){ S.selId=+id; rcolor(); zoomTo(+id); showInfo(+id); }
+
+function zoomTo(intId){
+  if(!S.worldData||!svgEl) return;
+  var feat=topojson.feature(S.worldData,S.worldData.objects.countries);
+  var f=feat.features.find(function(f){return+f.id===intId;});
+  if(!f) return;
+  var b=pfn.bounds(f), bw=b[1][0]-b[0][0], bh=b[1][1]-b[0][1];
+  var sc=Math.min(10,0.78/Math.max(bw/W,bh/H));
+  var cx=(b[0][0]+b[1][0])/2, cy=(b[0][1]+b[1][1])/2;
+  svgEl.transition().duration(700).call(
+    zbeh.transform, d3.zoomIdentity.translate(W/2,H/2).scale(sc).translate(-cx,-cy));
+}
+function resetZoom(){
+  if(svgEl) svgEl.transition().duration(500).call(zbeh.transform,d3.zoomIdentity);
+}
+function toggleLabels(){
+  showLabels=!showLabels;
+  if(svgEl) svgEl.select(".lg").style("display",showLabels?null:"none");
+  document.getElementById("lblbtn").classList.toggle("off",!showLabels);
+}
+
+/* ── 模式與地區 ── */
+function setMode(m){
+  S.mode=m; S.selId=null; S.q.active=false;
+  document.getElementById("tlearn").classList.toggle("on",m==="learn");
+  document.getElementById("tquiz").classList.toggle("on",m==="quiz");
+  document.getElementById("rbar").style.display=m==="learn"?"flex":"none";
+  rcolor(); resetZoom();
+  if(m==="learn") renderLearn(); else renderQSetup();
+}
+function setRegion(btn,r){
+  S.region=r; S.selId=null;
+  document.querySelectorAll(".rp").forEach(function(b){b.classList.remove("on");});
+  btn.classList.add("on"); rcolor(); resetZoom(); updBdg();
+  if(S.mode==="learn") renderLearn();
+}
+function updBdg(){
+  var n=Object.values(C).filter(function(d){return S.region==="all"||d[5]===S.region;}).length;
+  document.getElementById("cntb").textContent=n+" 個國家";
+}
+function setLearnView(v){ S.lview=v; S.selId=null; rcolor(); resetZoom(); renderLearn(); }
+
+/* ── 面板 tabs ── */
+function tabsH(){
+  return '<div class="ptabs">'
+    +'<button class="ptab'+(S.lview==="map"?" on":"")+'" onclick="setLearnView(\'map\')">🗺 地圖瀏覽</button>'
+    +'<button class="ptab'+(S.lview==="list"?" on":"")+'" onclick="setLearnView(\'list\')">📋 國家清單</button>'
+    +'</div>';
+}
+
+/* ── 學習面板 ── */
+function renderLearn(){
+  if(S.lview==="list"){
+    var pool=getPool(S.region).sort(function(a,b){return a.d[0].localeCompare(b.d[0],"zh");});
+    document.getElementById("panel").innerHTML=tabsH()
+      +'<div class="list-wrap"><div class="sinp-wrap">'
+      +'<input class="sinp" type="text" placeholder="搜尋國家名稱…" oninput="filterList(this.value)"></div>'
+      +'<div class="clist" id="clist">'+listH(pool)+'</div></div>';
+  } else {
+    document.getElementById("panel").innerHTML=tabsH()
+      +'<div class="empty"><div class="ico">🗺️</div>'
+      +'<p>點擊地圖上的任何國家<br>即可放大並查看詳情</p>'
+      +'<p style="font-size:11px;margin-top:8px;color:#3a5a78">滾輪縮放 · 拖曳移動<br>點擊自動放大至該國</p></div>';
+  }
+}
+function listH(pool){
+  if(!pool.length) return '<div style="text-align:center;padding:24px;color:#5a7a90;font-size:13px">找不到相符的國家</div>';
+  return pool.map(function(p){
+    return '<div class="cli" onclick="selFromList('+p.id+')">'
+      +'<div class="cli-fl">'+p.d[2]+'</div>'
+      +'<div class="cli-tx"><div class="cli-nm">'+p.d[0]+'</div>'
+      +'<div class="cli-sb">'+p.d[1]+' · 首都：'+p.d[3]+'</div></div>'
+      +'<div class="cli-ar">›</div></div>';
+  }).join("");
+}
+function filterList(q){
+  q=q.trim();
+  var pool=getPool(S.region);
+  if(q) pool=pool.filter(function(p){return p.d[0].includes(q)||p.d[1].toLowerCase().includes(q.toLowerCase());});
+  pool.sort(function(a,b){return a.d[0].localeCompare(b.d[0],"zh");});
+  document.getElementById("clist").innerHTML=listH(pool);
+}
+
+/* ── 國家資訊 ── */
+function showInfo(intId){
+  var d=L(intId);
+  if(!d){
+    document.getElementById("panel").innerHTML=tabsH()
+      +'<div class="empty"><div class="ico">❓</div><p>此地區暫無資料</p></div>';
+    return;
+  }
+  var col=RCOL[d[5]]||"#888";
+  var backBtn=(S.lview==="list")
+    ?'<button class="backb" onclick="goBackList()">← 回到清單</button>':"";
+  var langs=d[4].map(function(l){return'<span class="lt">'+l+'</span>';}).join("");
+  document.getElementById("panel").innerHTML=tabsH()
+    +'<div class="info">'
+    +'<div class="info-hero">'
+    +backBtn
+    +'<div class="flag-big">'+d[2]+'</div>'
+    +'<div class="name-zh">'+d[0]+'</div>'
+    +'<div class="name-en">'+d[1]+'</div>'
+    +'<span class="rgn-badge" style="background:'+col+'22;color:'+col+';border:1px solid '+col+'38">'+RLB[d[5]]+'</span>'
+    +'</div>'
+    +'<div class="dvd"></div>'
+    +'<div class="info-body">'
+    +'<div class="info-row"><div class="info-ico">🏛️</div><div><div class="info-lbl">首都</div><div class="info-val">'+d[3]+'</div></div></div>'
+    +'<div class="info-row"><div class="info-ico">💬</div><div><div class="info-lbl">官方語言</div><div class="ltags">'+langs+'</div></div></div>'
+    +'</div>'
+    +'<div class="dvd"></div>'
+    +'<div class="info-footer"><button class="quiz-here-btn" onclick="quickQuiz('+intId+')">⚡ 測驗這個地區</button></div>'
+    +'</div>';
+}
+function goBackList(){ S.selId=null; rcolor(); resetZoom(); renderLearn(); }
+
+/* ── 測驗 ── */
+function renderQSetup(){
+  document.getElementById("panel").innerHTML=
+    '<div class="qsetup"><div class="qsetup-title">⚡ 測驗設定</div>'
+    +'<div><div class="slbl">題目類型</div><div class="sopts">'
+    +'<button class="so pk" data-qt="mixed" onclick="pickQt(this,\'mixed\')">🎲 混合模式（隨機）</button>'
+    +'<button class="so" data-qt="name" onclick="pickQt(this,\'name\')">🏷️ 認國家名稱</button>'
+    +'<button class="so" data-qt="capital" onclick="pickQt(this,\'capital\')">🏛️ 認首都</button>'
+    +'<button class="so" data-qt="flag" onclick="pickQt(this,\'flag\')">🚩 認國旗</button>'
+    +'<button class="so" data-qt="lang" onclick="pickQt(this,\'lang\')">💬 認語言</button>'
+    +'</div></div>'
+    +'<div><div class="slbl">測驗範圍</div><div class="sopts">'
+    +'<button class="so pk" data-qr="all" onclick="pickQr(this,\'all\')">🌍 全球混合</button>'
+    +'<button class="so" data-qr="asia" onclick="pickQr(this,\'asia\')">亞洲</button>'
+    +'<button class="so" data-qr="europe" onclick="pickQr(this,\'europe\')">歐洲</button>'
+    +'<button class="so" data-qr="africa" onclick="pickQr(this,\'africa\')">非洲</button>'
+    +'<button class="so" data-qr="na" onclick="pickQr(this,\'na\')">北美洲</button>'
+    +'<button class="so" data-qr="sa" onclick="pickQr(this,\'sa\')">南美洲</button>'
+    +'<button class="so" data-qr="oc" onclick="pickQr(this,\'oc\')">大洋洲</button>'
+    +'</div></div>'
+    +'<button class="startb" onclick="startQuiz()">▶ 開始測驗</button></div>';
+  S.q.type="mixed"; S.q.region="all";
+}
+function pickQt(btn,v){document.querySelectorAll("[data-qt]").forEach(function(b){b.classList.remove("pk");});btn.classList.add("pk");S.q.type=v;}
+function pickQr(btn,v){document.querySelectorAll("[data-qr]").forEach(function(b){b.classList.remove("pk");});btn.classList.add("pk");S.q.region=v;}
+function getPool(reg){
+  return Object.entries(C)
+    .filter(function(e){return reg==="all"||e[1][5]===reg;})
+    .map(function(e){return{id:+e[0],d:e[1]};});
+}
+function startQuiz(){S.q.active=true;S.q.correct=0;S.q.total=0;S.q.streak=0;nextQ();}
+function quickQuiz(intId){
+  setMode("quiz");
+  setTimeout(function(){
+    var cd=L(intId);S.q.active=true;S.q.correct=0;S.q.total=0;S.q.streak=0;
+    S.q.region=cd?cd[5]:"all";nextQ(intId);
+  },80);
+}
+function nextQ(fid){
+  var pool=getPool(S.q.region);
+  if(pool.length<4){alert("此範圍國家不足，請選其他範圍");return;}
+  var tgt;
+  if(fid!=null) tgt=pool.find(function(p){return p.id===fid;})||pool[Math.floor(Math.random()*pool.length)];
+  else tgt=pool[Math.floor(Math.random()*pool.length)];
+  S.q.curId=tgt.id; S.q.answered=false;
+  var types=S.q.type==="mixed"?["name","capital","flag","lang"]:[S.q.type];
+  S.q.qType=types[Math.floor(Math.random()*types.length)];
+  var others=pool.filter(function(p){return p.id!==tgt.id;}).sort(function(){return Math.random()-.5;}).slice(0,3);
+  S.q.opts=[tgt].concat(others).sort(function(){return Math.random()-.5;});
+  rcolor();zoomTo(tgt.id);renderQ();
+}
+function optTxt(opt,qt){
+  var d=opt.d;
+  if(qt==="name") return d[2]+" "+d[0];
+  if(qt==="capital") return d[3];
+  if(qt==="flag") return d[2];
+  return d[4][0];
+}
+function renderQ(){
+  var q=S.q,cd=L(q.curId);
+  var qTxt={name:"地圖上橘色標示的是哪個國家？",capital:"這個國家的首都是哪裡？",flag:"這個國家的國旗是哪一個？",lang:"這個國家的官方語言是什麼？"}[q.qType];
+  var qLbl={name:"認國家名稱",capital:"認首都",flag:"認國旗",lang:"認語言"}[q.qType];
+  var pct=q.total>0?Math.round(q.correct/q.total*100):0;
+  var strkH=q.streak>=2?'<span class="strk">🔥 '+q.streak+' 連勝</span>':"";
+  var optsH=q.opts.map(function(opt){
+    return'<button class="ob'+(q.qType==="flag"?" flgo":"")+'" data-oid="'+opt.id
+      +'" onclick="handleAns('+opt.id+')">'+optTxt(opt,q.qType)+'</button>';
+  }).join("");
+  document.getElementById("panel").innerHTML=
+    '<div class="qhdr"><div class="sc"><span class="scn">'+q.correct+'</span> / '+q.total+'</div>'
+    +strkH+'<button class="quitb" onclick="quitQuiz()">結束</button></div>'
+    +'<div class="pgbar"><div class="pgfill" style="width:'+pct+'%"></div></div>'
+    +'<div class="qbody"><div class="qtlbl">'+qLbl+'</div>'
+    +'<div class="qtxt">'+qTxt+'</div>'
+    +'<div class="hint">👆 留意地圖上橘色標示的區域</div>'
+    +'<div class="ogrid">'+optsH+'</div>'
+    +'<div id="fb" style="display:none"></div></div>';
+}
+function handleAns(selId){
+  if(S.q.answered) return;
+  S.q.answered=true;S.q.total++;
+  var ok=selId===S.q.curId;
+  if(ok){S.q.correct++;S.q.streak++;}else{S.q.streak=0;}
+  document.querySelectorAll(".ob").forEach(function(b){
+    var bid=+b.dataset.oid;b.disabled=true;
+    if(bid===S.q.curId)b.classList.add("ok");
+    else if(bid===selId&&!ok)b.classList.add("ng");
+  });
+  var cd=L(S.q.curId);
+  var fb=document.getElementById("fb");
+  fb.style.display="flex"; fb.className="fb "+(ok?"ok":"ng");
+  if(ok){
+    fb.innerHTML='<span style="font-size:16px">✅</span><div><div style="font-weight:600">答對了！</div>'
+      +'<div style="font-size:11px;margin-top:2px">首都：'+cd[3]+'　語言：'+cd[4][0]+'</div></div>';
+  }else{
+    fb.innerHTML='<span style="font-size:16px">❌</span><div><div style="font-weight:600">答錯了</div>'
+      +'<div style="font-size:11px;margin-top:2px">正確答案：'+cd[2]+' '+cd[0]+'（首都：'+cd[3]+'）</div></div>';
+  }
+  fb.insertAdjacentHTML("afterend",'<button class="nxtb" onclick="nextQ()">下一題 →</button>');
+}
+function quitQuiz(){
+  var q=S.q;S.q.active=false;rcolor();resetZoom();
+  var pct=q.total>0?Math.round(q.correct/q.total*100):0;
+  document.getElementById("panel").innerHTML=
+    '<div class="rspanel"><div class="rsico">'+(pct>=80?"🏆":pct>=50?"😊":"💪")+'</div>'
+    +'<div class="rsscore">'+q.correct+' / '+q.total+'</div>'
+    +'<div class="rspct">正確率 '+pct+'%</div>'
+    +'<div class="rsmsg">'+(q.total===0?"這次沒有作答":pct>=80?"太厲害了！地理達人！":pct>=50?"不錯，繼續加油！":"多練習幾次就會進步的！")+'</div>'
+    +'<div class="actbtns">'
+    +'<button class="ab prim" onclick="renderQSetup()">再次測驗</button>'
+    +'<button class="ab sec" onclick="setMode(\'learn\')">← 回到學習模式</button>'
+    +'</div></div>';
+}
+
+/* ── 地圖初始化 ── */
+async function initMap(){
+  var wrap=document.getElementById("mwrap");
+  W=wrap.clientWidth||800; H=wrap.clientHeight||500;
+  svgEl=d3.select("#msvg");
+
+  /* Mercator：與 Google Maps 相同的投影
+     scale = W/(2π) → 360° 剛好填滿寬度 W（無限滾動的關鍵）
+     不使用 center()，保持世界寬度剛好等於 W，方便拼貼計算
+     translate y +60 → 赤道偏下，讓視角偏向北半球 */
+  proj=d3.geoMercator()
+    .scale(W/(2*Math.PI))
+    .translate([W/2,H/2+60]);
+  pfn=d3.geoPath().projection(proj);
+
+  zbeh=d3.zoom().scaleExtent([0.5,18])
+    .on("zoom",function(e){
+      gEl.attr("transform",e.transform);
+      var ww=W*e.transform.k; // 目前縮放下的世界寬度（螢幕像素）
+      /* 重算國家標籤和水域標籤的螢幕座標（含換行邏輯） */
+      function reposLabels(sel){
+        sel.attr("transform",function(){
+          var ox=+this.getAttribute("data-ox"),oy=+this.getAttribute("data-oy");
+          var p=e.transform.apply([ox,oy]);
+          var px=p[0];
+          if(px<-80) px+=ww;
+          else if(px>W+80) px-=ww;
+          return "translate("+px+","+p[1]+")";
+        });
+      }
+      reposLabels(svgEl.select(".lg").selectAll(".lb-g"));
+      reposLabels(svgEl.select(".wlg").selectAll(".wlb-g"));
+    });
+  svgEl.call(zbeh);
+
+  svgEl.append("rect").attr("width",W).attr("height",H).attr("fill","#1e3a58");
+  gEl=svgEl.append("g");
+
+  try{
+    var res=await fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-50m.json");
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    var world=await res.json();
+    S.worldData=world;
+    var countries=topojson.feature(world,world.objects.countries);
+
+    /* ── 三個世界拼貼，實現無限水平滾動 ───────────────────
+       世界寬度剛好 = W 像素（由 scale = W/2π 保證）
+       左拼貼 offset=-W，中拼貼 offset=0（可互動），右拼貼 offset=+W
+       拖曳到邊緣時，相鄰拼貼無縫接續，視覺上無限滾動 */
+    var borderMesh=topojson.mesh(world,world.objects.countries);
+    [-1,0,1].forEach(function(off){
+      var tile=gEl.append("g")
+        .attr("class",off===0?"tile-c":"tile-s")
+        .attr("transform","translate("+(off*W)+",0)");
+      if(off!==0) tile.attr("pointer-events","none");
+
+      var paths=tile.selectAll(".cp").data(countries.features).join("path")
+        .attr("class","country-path cp")
+        .attr("d",pfn)
+        .attr("fill",function(d){return gcf(d.id);});
+
+      if(off===0){
+        /* 經緯線只畫中間拼貼 */
+        tile.append("path").datum(d3.geoGraticule()()).attr("d",pfn)
+          .attr("fill","none").attr("stroke","rgba(255,255,255,.05)")
+          .attr("stroke-width",.6).attr("pointer-events","none");
+        /* 只有中間拼貼可互動；hover 改由 JS 管理避免 zoom 後 CSS :hover 卡住 */
+        paths.attr("id",function(d){return"c"+d.id;})
+          .on("mouseover",function(e,d){
+            showTip(e,d);
+            d3.select(this).classed("hov",true);
+          })
+          .on("mousemove",mvTip)
+          .on("mouseout",function(e,d){
+            hideTip();
+            d3.select(this).classed("hov",false);
+          })
+          .on("click",function(e,d){onCC(d.id);});
+      }
+
+      tile.append("path")
+        .datum(borderMesh)
+        .attr("d",pfn).attr("fill","none")
+        .attr("stroke","rgba(255,255,255,.72)").attr("stroke-width",.75)
+        .attr("pointer-events","none");
+    });
+
+    /* ── 地圖標籤：放在 svgEl（非 gEl），字體固定螢幕大小 ── */
+    /* 測驗模式下完全隱藏，避免洩漏答案 */
+    /* bestCentroid：多邊形國家（美、俄、加、印尼等）找最大陸塊的中心，
+       避免標籤跑到海洋或夾在兩塊大陸之間 */
+    function bestCentroid(f){
+      if(!f.geometry) return pfn.centroid(f);
+      if(f.geometry.type==="MultiPolygon"){
+        var best=null, bArea=-1;
+        f.geometry.coordinates.forEach(function(coords){
+          var tmp={type:"Feature",geometry:{type:"Polygon",coordinates:coords}};
+          var a=Math.abs(pfn.area(tmp));
+          if(a>bArea){bArea=a;best=tmp;}
+        });
+        return best?pfn.centroid(best):pfn.centroid(f);
+      }
+      return pfn.centroid(f);
+    }
+    var lg=svgEl.append("g").attr("class","lg").attr("pointer-events","none");
+    countries.features.forEach(function(f){
+      var cd=L(f.id); if(!cd) return;
+      var c=bestCentroid(f);
+      if(!isFinite(c[0])||!isFinite(c[1])) return;
+      var area=Math.abs(pfn.area(f));
+      if(area<3) return;
+      /* 字體大小根據國家面積決定，單位為固定螢幕像素 */
+      var fs=area>3500?13:area>700?11:area>180?9.5:area>50?8.5:7.5;
+      var g=lg.append("g")
+        .attr("class","lb-g")
+        .attr("data-ox",c[0]).attr("data-oy",c[1])
+        .attr("data-id",+f.id)
+        .attr("transform","translate("+c[0]+","+c[1]+")");
+      g.append("text")
+        .attr("class","lb")
+        .attr("text-anchor","middle")
+        .attr("dy","0.35em")
+        .attr("font-size",fs)
+        .text(cd[0]);
+    });
+
+    document.getElementById("ldg").style.display="none";
+    updBdg();
+
+    /* ── 水域標籤（海洋 / 海 / 湖泊）────────────────────────
+       避免使用者把大湖（裏海、五大湖、維多利亞湖等）誤認為資料缺失
+       採用斜體淡藍色，與國家名標籤明顯區隔                        */
+    var WATERS=[
+      {zh:"太平洋",lon:-168,lat:15,type:"ocean"},
+      {zh:"太平洋",lon:-148,lat:-25,type:"ocean"},
+      {zh:"大西洋",lon:-28,lat:10,type:"ocean"},
+      {zh:"大西洋",lon:-20,lat:-30,type:"ocean"},
+      {zh:"印度洋",lon:75,lat:-22,type:"ocean"},
+      {zh:"北冰洋",lon:0,lat:78,type:"ocean"},
+      {zh:"地中海",lon:15,lat:37,size:10,type:"sea"},
+      {zh:"加勒比海",lon:-76,lat:15,size:10,type:"sea"},
+      {zh:"紅海",lon:37,lat:20,size:9,type:"sea"},
+      {zh:"阿拉伯海",lon:65,lat:18,size:10,type:"sea"},
+      {zh:"孟加拉灣",lon:88,lat:13,size:10,type:"sea"},
+      {zh:"南海",lon:115,lat:12,size:11,type:"sea"},
+      {zh:"東海",lon:126,lat:28,size:9,type:"sea"},
+      {zh:"日本海",lon:135,lat:40,size:9,type:"sea"},
+      {zh:"黑海",lon:33,lat:43,size:9,type:"sea"},
+      {zh:"墨西哥灣",lon:-90,lat:24,size:10,type:"sea"},
+      {zh:"北海",lon:3,lat:56,size:9,type:"sea"},
+      {zh:"波羅的海",lon:20,lat:58,size:9,type:"sea"},
+      {zh:"幾內亞灣",lon:5,lat:2,size:9,type:"sea"},
+      {zh:"白令海",lon:-177,lat:57,size:10,type:"sea"},
+      {zh:"珊瑚海",lon:152,lat:-18,size:9,type:"sea"},
+      {zh:"塔斯曼海",lon:158,lat:-40,size:9,type:"sea"},
+      {zh:"裏海",lon:51,lat:42,size:10,type:"lake"},
+      {zh:"蘇必略湖",lon:-87.5,lat:47.5,size:8,type:"lake"},
+      {zh:"密西根湖",lon:-87,lat:43.8,size:8,type:"lake"},
+      {zh:"休倫湖",lon:-82.5,lat:44.5,size:8,type:"lake"},
+      {zh:"伊利湖",lon:-81,lat:42.2,size:7,type:"lake"},
+      {zh:"安大略湖",lon:-77.8,lat:43.7,size:7,type:"lake"},
+      {zh:"維多利亞湖",lon:33,lat:-1.2,size:9,type:"lake"},
+      {zh:"坦干伊喀湖",lon:29.5,lat:-6,size:8,type:"lake"},
+      {zh:"馬拉威湖",lon:34.5,lat:-12,size:8,type:"lake"},
+      {zh:"貝加爾湖",lon:108,lat:53,size:9,type:"lake"},
+      {zh:"鹹海",lon:59,lat:45,size:8,type:"lake"},
+    ];
+    var wlg=svgEl.append("g").attr("class","wlg").attr("pointer-events","none");
+    WATERS.forEach(function(w){
+      var c=proj([w.lon,w.lat]);
+      if(!c||!isFinite(c[0])||!isFinite(c[1])) return;
+      var fs=w.size||(w.type==="ocean"?15:w.type==="sea"?10:8);
+      wlg.append("g")
+        .attr("class","wlb-g")
+        .attr("data-ox",c[0]).attr("data-oy",c[1])
+        .attr("transform","translate("+c[0]+","+c[1]+")")
+        .append("text")
+        .attr("class","wlbl wlbl-"+w.type)
+        .attr("text-anchor","middle")
+        .attr("dy","0.35em")
+        .attr("font-size",fs)
+        .text(w.zh);
+    });
+    renderLearn();
+
+  }catch(err){
+    document.getElementById("ldg").innerHTML=
+      '<span style="color:#e05555;text-align:center;padding:16px">地圖載入失敗<br><small>請確認網路後重新整理</small></span>';
+    console.error(err);
+  }
+}
+
+window.addEventListener("load",function(){
+  requestAnimationFrame(function(){ requestAnimationFrame(initMap); });
+});
+</script>
+</body>
+</html>
