@@ -212,7 +212,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
 .pgfill{height:100%;background:linear-gradient(90deg,#c89050,#f0c060);
   transition:width .55s cubic-bezier(.4,0,.2,1);
   box-shadow:0 0 8px rgba(200,144,80,.5)}
-.qbody{flex:1;padding:14px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+.qbody{flex:1;padding:14px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;min-height:0}
 .qtlbl{font-size:9.5px;color:#304a60;text-transform:uppercase;letter-spacing:.9px;
   font-weight:600}
 .qtxt{font-size:14px;font-weight:600;color:#e8e0d0;line-height:1.45}
@@ -308,7 +308,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
   #mwrap,#mwrap:active{cursor:default}
 
   /* Panel → bottom sheet */
-  #panel{position:fixed;bottom:0;left:0;right:0;width:100%;max-height:80vh;
+  #panel{position:fixed;bottom:0;left:0;right:0;width:100%;max-height:85vh;
     min-height:0;transform:translateY(110%);
     transition:transform .32s cubic-bezier(.32,.72,0,1);
     z-index:200;border-radius:18px 18px 0 0;border-left:none;
@@ -316,7 +316,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
     box-shadow:0 -8px 40px rgba(0,0,0,.6);overflow:hidden;
     display:flex;flex-direction:column}
   #panel.mob-open{transform:translateY(0)}
-  #pb{flex:1;overflow-y:auto;display:flex;flex-direction:column}
+  #pb{flex:1;overflow-y:auto;min-height:0;-webkit-overflow-scrolling:touch}
 
   /* Show handle on mobile */
   .mob-handle{display:block}
@@ -335,6 +335,10 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
   .info-body{padding:12px 14px;gap:12px}
   .info-val{font-size:13px}
 
+  /* Quiz layout on mobile */
+  .qhdr{position:sticky;top:0;z-index:5;background:#162030}
+  .qbody{overflow-y:visible;padding:12px}
+  .pgbar{flex-shrink:0}
   /* Quiz options: full width (1 column), big touch targets */
   .ogrid{grid-template-columns:1fr}
   .ob{min-height:48px;padding:12px 14px;text-align:left;font-size:13px;
@@ -919,6 +923,7 @@ function renderQSetup(){
     +'</div></div>'
     +'<button class="startb" onclick="startQuiz()">▶ 開始測驗</button></div>';
   S.q.type="mixed"; S.q.region="all";
+  openMob();
 }
 function pickQt(btn,v){document.querySelectorAll("[data-qt]").forEach(function(b){b.classList.remove("pk");});btn.classList.add("pk");S.q.type=v;}
 function pickQr(btn,v){document.querySelectorAll("[data-qr]").forEach(function(b){b.classList.remove("pk");});btn.classList.add("pk");S.q.region=v;}
@@ -983,6 +988,7 @@ function renderQ(){
     return'<button class="ob'+(q.qType==="flag"?" flgo":"")+'" data-oid="'+opt.id
       +'" onclick="handleAns('+opt.id+')">'+optTxt(opt,q.qType)+'</button>';
   }).join("");
+  openMob();
   document.getElementById("pb").innerHTML=
     '<div class="qhdr"><div class="sc"><span class="scn">'+q.correct+'</span> / '+q.total+'</div>'
     +strkH+'<button class="quitb" onclick="quitQuiz()">結束</button></div>'
