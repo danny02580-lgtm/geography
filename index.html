@@ -52,11 +52,12 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
 #mwrap{flex:1;position:relative;overflow:hidden;background:#162e48;cursor:grab}
 #mwrap:active{cursor:grabbing}
 #msvg{width:100%;height:100%;display:block}
-.cp{stroke:none;cursor:pointer;transition:filter .15s;vector-effect:non-scaling-stroke}
-.cp.hov{stroke:#e84040;stroke-width:1;stroke-dasharray:4 3;filter:brightness(1.18)}
-.cp.sel{stroke:#ff3030;stroke-width:1.2;stroke-dasharray:5 3}
-.cp.hl{stroke:#ff7030;stroke-width:1.6}
+.cp{stroke:none;cursor:pointer;transition:fill .35s,opacity .35s,filter .2s;vector-effect:non-scaling-stroke}
+.cp.hov{stroke:#f0d070;stroke-width:1.2;filter:url(#glow-hov) brightness(1.18)}
+.cp.sel{stroke:#f0c840;stroke-width:1.6;filter:url(#glow-sel)}
+.cp.hl{stroke:#ffa040;stroke-width:2;filter:url(#glow-quiz)}
 .cp.dim{opacity:.11}
+.border-mesh,.a1p{vector-effect:non-scaling-stroke}
 
 /* ═══════════ TOOLTIP ═══════════ */
 #tip{position:absolute;background:rgba(10,20,36,.96);border:1px solid rgba(255,255,255,.14);
@@ -163,9 +164,10 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
 .sinp::placeholder{color:#304a60}
 .sinp:focus{border-color:#c89050;box-shadow:0 0 0 3px rgba(200,144,80,.12)}
 .clist{flex:1;overflow-y:auto;padding:5px}
-.cli{display:flex;align-items:center;gap:10px;padding:8px 10px;
-  border-radius:8px;cursor:pointer;transition:background .12s}
-.cli:hover{background:rgba(255,255,255,.06)}
+.cli{display:flex;align-items:center;gap:10px;padding:8px 10px 8px 13px;
+  border-radius:8px;cursor:pointer;transition:background .15s,border-color .18s;
+  border-left:2.5px solid transparent}
+.cli:hover{background:rgba(255,255,255,.05);border-left-color:var(--rgc,#506070)}
 .cli-fl{font-size:22px;flex-shrink:0;line-height:1}
 .cli-tx{flex:1;min-width:0}
 .cli-nm{font-size:13px;font-weight:500;color:#e8e0d0}
@@ -208,11 +210,11 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
   color:#4a7a9a;font-size:11px;padding:4px 10px;border-radius:6px;
   cursor:pointer;font-family:inherit;transition:all .18s}
 .quitb:hover{color:#f07070;border-color:rgba(240,112,112,.3)}
-.pgbar{height:3px;background:rgba(255,255,255,.06);flex-shrink:0}
-.pgfill{height:100%;background:linear-gradient(90deg,#c89050,#f0c060);
+.pgbar{height:6px;background:rgba(255,255,255,.07);flex-shrink:0;overflow:hidden}
+.pgfill{height:100%;background:linear-gradient(90deg,#c89050,#f0d060);
   transition:width .55s cubic-bezier(.4,0,.2,1);
-  box-shadow:0 0 8px rgba(200,144,80,.5)}
-.qbody{flex:1;padding:14px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;min-height:0}
+  box-shadow:0 0 10px rgba(200,144,80,.6)}
+.qbody{flex:1;padding:14px;display:flex;flex-direction:column;gap:10px;overflow:hidden}
 .qtlbl{font-size:9.5px;color:#304a60;text-transform:uppercase;letter-spacing:.9px;
   font-weight:600}
 .qtxt{font-size:14px;font-weight:600;color:#e8e0d0;line-height:1.45}
@@ -230,11 +232,8 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
 .ob.ok{border-color:rgba(78,205,160,.45);background:rgba(78,205,160,.12);
   color:#5dd4a8;font-weight:600}
 .ob.ng{border-color:rgba(232,80,80,.45);background:rgba(232,80,80,.12);color:#f07070}
-.fb{padding:10px 12px;border-radius:9px;font-size:12px;
-  line-height:1.45;animation:fb-in .2s ease;display:flex;flex-direction:column;gap:9px}
-.fb-msg{display:flex;align-items:flex-start;gap:9px}
-.fb-ico{font-size:16px;line-height:1.2;flex-shrink:0}
-.fb-sub{font-size:11px;margin-top:2px;opacity:.85}
+.fb{padding:10px 12px;border-radius:9px;font-size:12px;display:flex;
+  align-items:flex-start;gap:9px;line-height:1.45;animation:fb-in .2s ease}
 @keyframes fb-in{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:translateY(0)}}
 .fb.ok{background:rgba(78,205,160,.09);border:1px solid rgba(78,205,160,.22);color:#5dd4a8}
 .fb.ng{background:rgba(232,80,80,.09);border:1px solid rgba(232,80,80,.22);color:#f07070}
@@ -283,130 +282,6 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
 ::-webkit-scrollbar-track{background:transparent}
 ::-webkit-scrollbar-thumb{background:rgba(255,255,255,.1);border-radius:2px}
 ::-webkit-scrollbar-thumb:hover{background:rgba(255,255,255,.2)}
-
-/* ═══════════ MOB HANDLE (always in DOM) ═══════════ */
-.mob-handle{display:none;padding:10px 0 6px;cursor:grab;flex-shrink:0;
-  border-bottom:1px solid rgba(255,255,255,.06)}
-.mob-handle-bar{width:36px;height:4px;border-radius:2px;
-  background:rgba(255,255,255,.2);margin:0 auto}
-#mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.18);
-  z-index:195}
-#mob-overlay.show{display:block}
-
-/* ═══════════ MOBILE ≤768px ═══════════ */
-@media(max-width:768px){
-  /* Header */
-  header{height:46px;padding:0 14px}
-  .logo{font-size:13px}
-  .logo span{display:none}
-  .tab{padding:5px 13px;font-size:11px}
-
-  /* Region bar */
-  .rbar{padding:5px 10px;gap:4px}
-  .rp{padding:3px 10px;font-size:10.5px}
-
-  /* Layout: map fills all */
-  .main{position:relative}
-  #mwrap{flex:1;min-height:0}
-  #mwrap,#mwrap:active{cursor:default}
-
-  /* Panel → bottom sheet */
-  #panel{position:fixed;bottom:0;left:0;right:0;width:100%;max-height:85vh;
-    min-height:0;transform:translateY(110%);
-    transition:transform .32s cubic-bezier(.32,.72,0,1);
-    z-index:200;border-radius:18px 18px 0 0;border-left:none;
-    border-top:1px solid rgba(255,255,255,.12);
-    box-shadow:0 -8px 40px rgba(0,0,0,.6);overflow:hidden;
-    display:flex;flex-direction:column}
-  #panel.mob-open{transform:translateY(0)}
-  #pb{flex:1;overflow-y:auto;min-height:0;-webkit-overflow-scrolling:touch}
-
-  /* Show handle on mobile */
-  .mob-handle{display:block}
-
-  /* Layers panel: repositioned to bottom-left */
-  #layers-wrap{top:auto;bottom:20px;left:12px;min-width:106px}
-  .lbtn{padding:5px 9px;font-size:10.5px;min-height:34px}
-  .lbtn-sm{width:28px;height:28px}
-
-  /* Panel tabs */
-  .ptab{padding:10px 4px;font-size:11px}
-
-  /* Info card */
-  .flag-big{font-size:66px}
-  .name-zh{font-size:22px}
-  .info-body{padding:12px 14px;gap:12px}
-  .info-val{font-size:13px}
-
-  /* Quiz layout on mobile */
-  .qhdr{position:sticky;top:0;z-index:5;background:#162030}
-  .qbody{overflow-y:visible;padding:12px}
-  .pgbar{flex-shrink:0}
-  /* Quiz options: full width (1 column), big touch targets */
-  .ogrid{grid-template-columns:1fr}
-  .ob{min-height:48px;padding:12px 14px;text-align:left;font-size:13px;
-    display:flex;align-items:center}
-  .ob.flgo{justify-content:center;font-size:34px;min-height:60px}
-
-  /* Quiz header */
-  .qhdr{padding:11px 14px}
-  .scn{font-size:15px}
-  .qtxt{font-size:13px}
-
-  /* Touch-friendly buttons */
-  .nxtb{min-height:46px;font-size:13.5px}
-  .startb{min-height:46px;font-size:14px}
-  .ab{min-height:44px;font-size:13px}
-  .so{min-height:42px}
-  .cli{padding:10px}
-  .cli-nm{font-size:13.5px}
-  .quiz-here-btn{min-height:44px;font-size:13px}
-  .backb{min-height:36px}
-
-  /* Results */
-  .rsico{font-size:56px}
-  .rsscore{font-size:36px}
-
-  /* Search input */
-  .sinp{padding:10px 14px;font-size:13px}
-
-  /* Empty state */
-  .empty .ico{font-size:48px}
-  .empty p{font-size:13.5px}
-
-  /* Tooltip: top instead of following cursor */
-  #tip{top:56px!important;bottom:auto!important;
-    left:50%!important;transform:translateX(-50%);
-    white-space:normal;max-width:240px;text-align:center}
-
-  /* Quiz: 50vh panel, compact single-page layout */
-  #panel.quiz-mode.mob-open{max-height:50vh}
-  #panel.quiz-mode .mob-handle{padding:6px 0 4px}
-  #panel.quiz-mode .qhdr{padding:7px 14px}
-  #panel.quiz-mode .scn{font-size:13px}
-  #panel.quiz-mode .qbody{padding:8px 12px;gap:6px}
-  #panel.quiz-mode .hint{display:none}
-  #panel.quiz-mode .qtlbl{display:none}
-  #panel.quiz-mode .qtxt{font-size:12.5px;font-weight:500;line-height:1.35}
-  #panel.quiz-mode .ogrid{gap:5px}
-  #panel.quiz-mode .ob{min-height:36px;padding:6px 12px;font-size:12.5px}
-  #panel.quiz-mode .ob.flgo{min-height:44px;font-size:26px}
-  /* Feedback + next button combined */
-  #panel.quiz-mode .fb{padding:7px 10px;font-size:11.5px;
-    display:flex;flex-direction:column;gap:6px}
-  #panel.quiz-mode .fb-msg{display:flex;gap:8px;align-items:flex-start}
-  #panel.quiz-mode .fb-ico{font-size:14px;line-height:1.3}
-  #panel.quiz-mode .fb-sub{font-size:10.5px;margin-top:1px;opacity:.85}
-  #panel.quiz-mode .nxtb{min-height:38px;font-size:13px;padding:7px;margin:0}
-}
-
-/* Extra small (iPhone SE etc.) */
-@media(max-width:390px){
-  .tab{padding:5px 10px;font-size:10px}
-  .rp{font-size:10px;padding:3px 8px}
-  #layers-wrap{min-width:96px}
-  .lbtn{font-size:10px}
-}
 </style>
 </head>
 <body>
@@ -442,11 +317,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
     </div>
     <div class="ldg" id="ldg"><div class="spin"></div><span>載入地圖資料…</span></div>
   </div>
-  <div id="mob-overlay" onclick="closeMob()"></div>
-  <div id="panel">
-    <div class="mob-handle" onclick="closeMob()"><div class="mob-handle-bar"></div></div>
-    <div id="pb"></div>
-  </div>
+  <div id="panel"></div>
 </div>
 
 <script>
@@ -698,7 +569,9 @@ var S={
 var svgEl,proj,pfn,zbeh,gEl,W,H,showLabels=true;
 var tileRefs=[],tileOff=[]; /* 三拼貼動態位移 */
 var S_hovId=null; /* 目前 hover 的國家 ID */
-var _quizSaved=null; /* 測驗前的標籤狀態 */
+var tipEl,mwrapEl; /* 快取 DOM 元素，避免熱路徑重複查詢 */
+var _poolCache={}; /* getPool 結果快取，key=region */
+var _filterTimer; /* filterList debounce timer */
 
 /* ── 核心修正：topojson ID 為帶前導零字串，用 +id 轉成整數查表 ── */
 function L(id){ return C[+id]||null; }
@@ -708,61 +581,45 @@ function gcf(id){ var d=L(id); return d?(RCOL[d[5]]||"#7a8a90"):"#506070"; }
 function rcolor(){
   if(!gEl) return;
   var isQ=S.mode==="quiz"&&S.q.active;
-  /* 更新所有 tile 副本填色 */
+  var hasRegion=!isQ&&S.region&&S.region!=="all";
+  var hasSel=!isQ&&!!S.selId&&S.lview==="list";
+  /* 合併為單次掃描：填色 + sel/hl/dim class 同步設定，避免多次 selectAll */
   gEl.selectAll(".cp").each(function(d){
     var el=d3.select(this);
     var id=+d.id;
     if(isQ){
       var cur=id===S.q.curId;
       el.attr("fill",cur?"#ff6820":"#243040").attr("opacity",cur?1:0.22);
+      el.classed("sel",false).classed("hl",cur).classed("dim",false);
     } else {
       el.attr("fill",gcf(id)).attr("opacity",null);
+      el.classed("sel",id===S.selId).classed("hl",false);
+      var cd=L(id);
+      var rDim=hasRegion&&!(cd&&cd[5]===S.region);
+      var sDim=hasSel&&id!==S.selId;
+      el.classed("dim",rDim||sDim);
     }
   });
-  /* 選取高亮：所有副本都更新 */
-  gEl.selectAll(".cp").classed("sel",false).classed("hl",false);
-  if(!isQ&&S.selId){
-    gEl.selectAll(".cp").filter(function(d){return+d.id===S.selId;}).classed("sel",true);
-  }
-  if(isQ&&S.q.curId){
-    gEl.selectAll(".cp").filter(function(d){return+d.id===S.q.curId;}).classed("hl",true);
-  }
-  /* dim：大洲篩選 + 清單選取 */
-  gEl.selectAll(".cp").classed("dim",false);
-  if(!isQ){
-    var hasRegion=S.region&&S.region!=="all";
-    var hasSel=S.selId&&S.lview==="list";
-    if(hasRegion||hasSel){
-      gEl.selectAll(".cp").each(function(d){
-        var id=+d.id; var cd=L(id);
-        var rDim=hasRegion&&!(cd&&cd[5]===S.region);
-        var sDim=hasSel&&id!==S.selId;
-        if(rDim||sDim) d3.select(this).classed("dim",true);
-      });
-    }
-  }
-  /* 標籤 dim */
-  svgEl.select(".lg").selectAll(".lb-g").each(function(){
-    var id=+this.getAttribute("data-id");
-    var dim=showLabels&&S.selId&&id!==S.selId&&S.lview==="list";
+  /* 標籤 dim（從 datum 讀 id，避免 getAttribute）*/
+  svgEl.select(".lg").selectAll(".lb-g").each(function(d){
+    var dim=showLabels&&S.selId&&d.id!==S.selId&&S.lview==="list";
     d3.select(this).classed("dim",dim||!showLabels);
   });
 }
 
 function showTip(e,d){
-  if(S.mode==="quiz"&&S.q.active) return;  // 測驗時不顯示國家名
+  if(S.mode==="quiz"&&S.q.active) return;
   var cd=L(d.id); if(!cd) return;
-  var t=document.getElementById("tip");
-  t.innerHTML=cd[2]+" <strong>"+cd[0]+"</strong> <span style='color:#7a9ab0;font-size:10px'>首都："+cd[3]+"</span>";
-  t.style.opacity="1";
+  tipEl.innerHTML=cd[2]+" <strong>"+cd[0]+"</strong> <span style='color:#7a9ab0;font-size:10px'>首都："+cd[3]+"</span>";
+  tipEl.style.opacity="1";
 }
 function mvTip(e){
-  var r=document.getElementById("mwrap").getBoundingClientRect();
+  var r=mwrapEl.getBoundingClientRect();
   var x=e.clientX-r.left+14,y=e.clientY-r.top-44;
   if(x+230>r.width)x-=245; if(y<4)y=e.clientY-r.top+14;
-  var t=document.getElementById("tip"); t.style.left=x+"px"; t.style.top=y+"px";
+  tipEl.style.left=x+"px"; tipEl.style.top=y+"px";
 }
-function hideTip(){document.getElementById("tip").style.opacity="0";}
+function hideTip(){tipEl.style.opacity="0";}
 
 /* ── 點擊與縮放 ── */
 function onCC(id){
@@ -776,42 +633,19 @@ function zoomTo(intId){
   var g=geoms.find(function(x){return+x.id===intId;});
   if(!g) return;
   var feat=topojson.feature(S.worldData,g);
-
-  /* 對 MultiPolygon（含海外領土的國家，如法國、美國、丹麥等），
-     只取面積最大的那塊多邊形（本土）做邊界計算，
-     避免縮放被法屬圭亞那、夏威夷、格陵蘭等拉偏             */
-  var targetFeat=feat;
-  if(feat.geometry&&feat.geometry.type==="MultiPolygon"){
-    var bestArea=-1, bestCoords=null;
-    feat.geometry.coordinates.forEach(function(coords){
-      var tmp={type:"Feature",geometry:{type:"Polygon",coordinates:coords}};
-      var area=Math.abs(pfn.area(tmp));
-      if(area>bestArea){bestArea=area;bestCoords=coords;}
-    });
-    if(bestCoords)
-      targetFeat={type:"Feature",geometry:{type:"Polygon",coordinates:bestCoords}};
-  }
-
-  var bounds=pfn.bounds(targetFeat);
+  var bounds=pfn.bounds(feat);
   if(!bounds||!isFinite(bounds[0][0])) return;
   var bw=bounds[1][0]-bounds[0][0], bh=bounds[1][1]-bounds[0][1];
   var cx=(bounds[0][0]+bounds[1][0])/2, cy=(bounds[0][1]+bounds[1][1])/2;
-  /* 手機測驗時：依當前 viewport 動態計算可見地圖區域 */
-  var visH=H, tgtY=H/2;
-  if(isMob() && S.q && S.q.active){
-    var vh=window.innerHeight;
-    var svgTop=vh-H;             /* SVG 上方 header+region bar 高度 */
-    var panelTopVp=vh*0.5;       /* 面板 top（quiz-mode 50vh） */
-    visH=Math.max(160, panelTopVp-svgTop);  /* 可見地圖高度（SVG 座標） */
-    tgtY=visH/2;                 /* 國家居中在可見區內 */
-  }
-  var sc=Math.max(1.0,Math.min(40,0.78/Math.max(bw/W,bh/visH)));
+  var sc=Math.max(1.0, Math.min(40,0.78/Math.max(bw/W,bh/H)));
+  /* 找最近的世界副本：依據目前螢幕中心位置決定跳往哪個副本
+     避免在左右滑動後跳回原始世界（0~W 投影座標）              */
   var curT=d3.zoomTransform(svgEl.node());
   var viewCx=(W/2-curT.x)/curT.k;
   var n=Math.round((viewCx-cx)/W);
   var adjCx=cx+n*W;
   svgEl.transition().duration(600)
-    .call(zbeh.transform,d3.zoomIdentity.translate(W/2-sc*adjCx,tgtY-sc*cy).scale(sc));
+    .call(zbeh.transform,d3.zoomIdentity.translate(W/2-sc*adjCx,H/2-sc*cy).scale(sc));
 }
 
 function resetZoom(){
@@ -869,13 +703,13 @@ function tabsH(){
 /* ── 學習面板 ── */
 function renderLearn(){
   if(S.lview==="list"){
-    var pool=getPool(S.region).sort(function(a,b){return a.d[0].localeCompare(b.d[0],"zh");});
-    document.getElementById("pb").innerHTML=tabsH()
+    var pool=getPool(S.region).slice().sort(function(a,b){return a.d[0].localeCompare(b.d[0],"zh");});
+    document.getElementById("panel").innerHTML=tabsH()
       +'<div class="list-wrap"><div class="sinp-wrap">'
       +'<input class="sinp" type="text" placeholder="搜尋國家名稱…" oninput="filterList(this.value)"></div>'
       +'<div class="clist" id="clist">'+listH(pool)+'</div></div>';
   } else {
-    document.getElementById("pb").innerHTML=tabsH()
+    document.getElementById("panel").innerHTML=tabsH()
       +'<div class="empty"><div class="ico">🗺️</div>'
       +'<p>點擊地圖上的任何國家<br>即可放大並查看詳情</p>'
       +'<p style="font-size:11px;margin-top:8px;color:#3a5a78">滾輪縮放 · 拖曳移動<br>點擊自動放大至該國</p></div>';
@@ -884,7 +718,7 @@ function renderLearn(){
 function listH(pool){
   if(!pool.length) return '<div style="text-align:center;padding:24px;color:#5a7a90;font-size:13px">找不到相符的國家</div>';
   return pool.map(function(p){
-    return '<div class="cli" onclick="selFromList('+p.id+')">'
+    return '<div class="cli" style="--rgc:'+(RCOL[p.d[5]]||'#506070')+'" onclick="selFromList('+p.id+')">'
       +'<div class="cli-fl">'+p.d[2]+'</div>'
       +'<div class="cli-tx"><div class="cli-nm">'+p.d[0]+'</div>'
       +'<div class="cli-sb">'+p.d[1]+' · 首都：'+p.d[3]+'</div></div>'
@@ -892,18 +726,21 @@ function listH(pool){
   }).join("");
 }
 function filterList(q){
-  q=q.trim();
-  var pool=getPool(S.region);
-  if(q) pool=pool.filter(function(p){return p.d[0].includes(q)||p.d[1].toLowerCase().includes(q.toLowerCase());});
-  pool.sort(function(a,b){return a.d[0].localeCompare(b.d[0],"zh");});
-  document.getElementById("clist").innerHTML=listH(pool);
+  clearTimeout(_filterTimer);
+  _filterTimer=setTimeout(function(){
+    q=q.trim();
+    var pool=getPool(S.region).slice();
+    if(q) pool=pool.filter(function(p){return p.d[0].includes(q)||p.d[1].toLowerCase().includes(q.toLowerCase());});
+    pool.sort(function(a,b){return a.d[0].localeCompare(b.d[0],"zh");});
+    document.getElementById("clist").innerHTML=listH(pool);
+  },150);
 }
 
 /* ── 國家資訊 ── */
 function showInfo(intId){
   var d=L(intId);
   if(!d){
-    document.getElementById("pb").innerHTML=tabsH()
+    document.getElementById("panel").innerHTML=tabsH()
       +'<div class="empty"><div class="ico">❓</div><p>此地區暫無資料</p></div>';
     return;
   }
@@ -911,9 +748,9 @@ function showInfo(intId){
   var backBtn=(S.lview==="list")
     ?'<button class="backb" onclick="goBackList()">← 回到清單</button>':"";
   var langs=d[4].map(function(l){return'<span class="lt">'+l+'</span>';}).join("");
-  document.getElementById("pb").innerHTML=tabsH()
+  document.getElementById("panel").innerHTML=tabsH()
     +'<div class="info">'
-    +'<div class="info-hero">'
+    +'<div class="info-hero" style="background:linear-gradient(150deg,'+col+'2e 0%,#1a3050 55%,#111e2e 100%)">'
     +backBtn
     +'<div class="flag-big">'+d[2]+'</div>'
     +'<div class="name-zh">'+d[0]+'</div>'
@@ -928,13 +765,12 @@ function showInfo(intId){
     +'<div class="dvd"></div>'
     +'<div class="info-footer"><button class="quiz-here-btn" onclick="quickQuiz('+intId+')">⚡ 測驗這個地區</button></div>'
     +'</div>';
-  openMob();
 }
 function goBackList(){ S.selId=null; rcolor(); resetZoom(); renderLearn(); }
 
 /* ── 測驗 ── */
 function renderQSetup(){
-  document.getElementById("pb").innerHTML=
+  document.getElementById("panel").innerHTML=
     '<div class="qsetup"><div class="qsetup-title">⚡ 測驗設定</div>'
     +'<div><div class="slbl">題目類型</div><div class="sopts">'
     +'<button class="so pk" data-qt="mixed" onclick="pickQt(this,\'mixed\')">🎲 混合模式（隨機）</button>'
@@ -954,35 +790,18 @@ function renderQSetup(){
     +'</div></div>'
     +'<button class="startb" onclick="startQuiz()">▶ 開始測驗</button></div>';
   S.q.type="mixed"; S.q.region="all";
-  document.getElementById("panel").classList.remove("quiz-mode");
-  openMob();
 }
 function pickQt(btn,v){document.querySelectorAll("[data-qt]").forEach(function(b){b.classList.remove("pk");});btn.classList.add("pk");S.q.type=v;}
 function pickQr(btn,v){document.querySelectorAll("[data-qr]").forEach(function(b){b.classList.remove("pk");});btn.classList.add("pk");S.q.region=v;}
 function getPool(reg){
-  return Object.entries(C)
+  if(_poolCache[reg]) return _poolCache[reg];
+  var pool=Object.entries(C)
     .filter(function(e){return reg==="all"||e[1][5]===reg;})
     .map(function(e){return{id:+e[0],d:e[1]};});
+  _poolCache[reg]=pool;
+  return pool;
 }
-function startQuiz(){
-  /* 儲存目前標籤狀態，測驗期間全關（讓使用者憑地形判斷）*/
-  _quizSaved={showLabels:showLabels, cities:LS.cities};
-  /* 關閉國名標籤 */
-  if(showLabels){
-    showLabels=false;
-    if(svgEl) svgEl.select(".lg").style("display","none");
-    var lb=document.getElementById("lblbtn");
-    if(lb) lb.classList.toggle("on",false);
-  }
-  /* 關閉首都名稱 */
-  if(LS.cities){
-    LS.cities=false;
-    if(svgEl) svgEl.select(".city-lg").style("display","none");
-    document.querySelectorAll("[data-layer='cities']").forEach(function(b){b.classList.toggle("on",false);});
-  }
-  S.q.active=true;S.q.correct=0;S.q.total=0;S.q.streak=0;
-  nextQ();
-}
+function startQuiz(){S.q.active=true;S.q.correct=0;S.q.total=0;S.q.streak=0;nextQ();}
 function quickQuiz(intId){
   setMode("quiz");
   setTimeout(function(){
@@ -1001,8 +820,6 @@ function nextQ(fid){
   S.q.qType=types[Math.floor(Math.random()*types.length)];
   var others=pool.filter(function(p){return p.id!==tgt.id;}).sort(function(){return Math.random()-.5;}).slice(0,3);
   S.q.opts=[tgt].concat(others).sort(function(){return Math.random()-.5;});
-  /* 先設 quiz-mode class 讓面板縮到 50vh，zoomTo 才能算出正確的可見區域 */
-  document.getElementById("panel").classList.add("quiz-mode");
   rcolor();zoomTo(tgt.id);renderQ();
 }
 function optTxt(opt,qt){
@@ -1022,9 +839,7 @@ function renderQ(){
     return'<button class="ob'+(q.qType==="flag"?" flgo":"")+'" data-oid="'+opt.id
       +'" onclick="handleAns('+opt.id+')">'+optTxt(opt,q.qType)+'</button>';
   }).join("");
-  openMob();
-  document.getElementById("panel").classList.add("quiz-mode");
-  document.getElementById("pb").innerHTML=
+  document.getElementById("panel").innerHTML=
     '<div class="qhdr"><div class="sc"><span class="scn">'+q.correct+'</span> / '+q.total+'</div>'
     +strkH+'<button class="quitb" onclick="quitQuiz()">結束</button></div>'
     +'<div class="pgbar"><div class="pgfill" style="width:'+pct+'%"></div></div>'
@@ -1046,38 +861,20 @@ function handleAns(selId){
   });
   var cd=L(S.q.curId);
   var fb=document.getElementById("fb");
-  fb.style.display="block"; fb.className="fb fb-wrap "+(ok?"ok":"ng");
-  var msgH;
+  fb.style.display="flex"; fb.className="fb "+(ok?"ok":"ng");
   if(ok){
-    msgH='<div class="fb-msg"><span class="fb-ico">✅</span>'
-      +'<div><b>答對了！</b><div class="fb-sub">首都：'+cd[3]+'　語言：'+cd[4][0]+'</div></div></div>';
+    fb.innerHTML='<span style="font-size:16px">✅</span><div><div style="font-weight:600">答對了！</div>'
+      +'<div style="font-size:11px;margin-top:2px">首都：'+cd[3]+'　語言：'+cd[4][0]+'</div></div>';
   }else{
-    msgH='<div class="fb-msg"><span class="fb-ico">❌</span>'
-      +'<div><b>正解：'+cd[2]+' '+cd[0]+'</b><div class="fb-sub">首都：'+cd[3]+'</div></div></div>';
+    fb.innerHTML='<span style="font-size:16px">❌</span><div><div style="font-weight:600">答錯了</div>'
+      +'<div style="font-size:11px;margin-top:2px">正確答案：'+cd[2]+' '+cd[0]+'（首都：'+cd[3]+'）</div></div>';
   }
-  /* feedback 與 next 按鈕在同一容器，不再 insertAdjacentHTML 避免溢出 */
-  fb.innerHTML=msgH+'<button class="nxtb" onclick="nextQ()">下一題 →</button>';
+  fb.insertAdjacentHTML("afterend",'<button class="nxtb" onclick="nextQ()">下一題 →</button>');
 }
 function quitQuiz(){
   var q=S.q;S.q.active=false;rcolor();resetZoom();
-  document.getElementById("panel").classList.remove("quiz-mode");
-  /* 恢復測驗前的標籤狀態 */
-  if(_quizSaved){
-    if(_quizSaved.showLabels!==showLabels){
-      showLabels=_quizSaved.showLabels;
-      if(svgEl) svgEl.select(".lg").style("display",showLabels?null:"none");
-      var lb=document.getElementById("lblbtn");
-      if(lb) lb.classList.toggle("on",showLabels);
-    }
-    if(_quizSaved.cities!==LS.cities){
-      LS.cities=_quizSaved.cities;
-      if(svgEl) svgEl.select(".city-lg").style("display",LS.cities?null:"none");
-      document.querySelectorAll("[data-layer='cities']").forEach(function(b){b.classList.toggle("on",LS.cities);});
-    }
-    _quizSaved=null;
-  }
   var pct=q.total>0?Math.round(q.correct/q.total*100):0;
-  document.getElementById("pb").innerHTML=
+  document.getElementById("panel").innerHTML=
     '<div class="rspanel"><div class="rsico">'+(pct>=80?"🏆":pct>=50?"😊":"💪")+'</div>'
     +'<div class="rsscore">'+q.correct+' / '+q.total+'</div>'
     +'<div class="rspct">正確率 '+pct+'%</div>'
@@ -1086,16 +883,15 @@ function quitQuiz(){
     +'<button class="ab prim" onclick="renderQSetup()">再次測驗</button>'
     +'<button class="ab sec" onclick="setMode(\'learn\')">← 回到學習模式</button>'
     +'</div></div>';
-  openMob();
 }
 
 /* ── 地圖初始化 ── */
 async function initMap(){
   var wrap=document.getElementById("mwrap");
   W=wrap.clientWidth||800; H=wrap.clientHeight||500;
-  svgEl=d3.select("#msvg")
-    .attr("viewBox","0 0 "+W+" "+H)
-    .attr("preserveAspectRatio","xMidYMid slice");
+  svgEl=d3.select("#msvg");
+  tipEl=document.getElementById("tip");
+  mwrapEl=wrap;
 
   proj=d3.geoMercator()
     .scale(W/(2*Math.PI)).translate([W/2,H/2+60]);
@@ -1106,33 +902,27 @@ async function initMap(){
      n0 算法：根據 viewport 位置計算三個 tile 應在的「世界索引」
      ─────────────────────────────────────────────────────────────── */
   zbeh=d3.zoom()
-    .scaleExtent([1,50])
+    .scaleExtent([1,50])          /* 最小 1x：世界恰好填滿 viewport，永不出現重複國家 */
     .extent([[0,0],[W,H]])
-    /* constrain: device-aware vertical clamp.
-       Desktop: 30% tolerance (matches original translateExtent behavior)
-       Mobile: 10% tolerance (prevents touch gesture overflow)         */
-    .constrain(function(t){
-      var k=t.k, mob=window.innerWidth<=768;
-      var tolPct=mob?0.10:0.30;
-      var minTy=H*(1-k*(1+tolPct));
-      var maxTy=k*H*tolPct;
-      var ty=Math.max(minTy, Math.min(maxTy, t.y));
-      return d3.zoomIdentity.translate(t.x, ty).scale(k);
-    })
+    .translateExtent([[-Infinity,-H*0.3],[Infinity,H*1.3]])
     .on("zoom",function(e){
       var k=e.transform.k,tx=e.transform.x,ty=e.transform.y,kW=k*W;
       var n0=Math.floor(-tx/kW)-1;
       gEl.attr("transform",e.transform);
+      /* 光暈 stdDeviation 反比縮放，保持恆定螢幕像素大小 */
+      var invK=1/k;
+      if(_glowBlur["glow-hov"]) _glowBlur["glow-hov"].attr("stdDeviation",Math.max(0.2,2.5*invK));
+      if(_glowBlur["glow-sel"]) _glowBlur["glow-sel"].attr("stdDeviation",Math.max(0.2,4.5*invK));
+      if(_glowBlur["glow-quiz"]) _glowBlur["glow-quiz"].attr("stdDeviation",Math.max(0.2,5.5*invK));
       /* 所有 tile（含河流/湖泊/行政區）一起移動 */
       for(var ti=0;ti<tileRefs.length;ti++){
         tileOff[ti]=(n0+ti)*W;
         tileRefs[ti].attr("transform","translate("+tileOff[ti]+",0)");
       }
-      /* 標籤環繞：帶到最接近螢幕中央 */
+      /* 標籤環繞：帶到最接近螢幕中央（座標從 datum 讀取，省去每幀 getAttribute）*/
       function repos(sel){
-        sel.attr("transform",function(){
-          var ox=+this.getAttribute("data-ox"),oy=+this.getAttribute("data-oy");
-          var px=k*ox+tx,py=k*oy+ty;
+        sel.attr("transform",function(d){
+          var px=k*d.ox+tx,py=k*d.oy+ty;
           while(px>W/2+kW/2) px-=kW;
           while(px<W/2-kW/2) px+=kW;
           return "translate("+px+","+py+")";
@@ -1142,21 +932,38 @@ async function initMap(){
       repos(svgEl.select(".wlg").selectAll(".wlb-g"));
       repos(svgEl.select(".city-lg").selectAll(".clb-g"));
       /* 國名標籤：依縮放層級隱藏小國，避免低縮放時文字堆疊 */
-      svgEl.select(".lg").selectAll(".lb-g").each(function(){
-        var a=+this.getAttribute("data-area")||0;
+      svgEl.select(".lg").selectAll(".lb-g").each(function(d){
+        var a=d.area||0;
         var show=k>=6||(k>=3&&a>30)||(k>=1.5&&a>150)||(k>=0.9&&a>600)||a>2000;
         this.style.display=show?null:"none";
       });
       /* 首都標籤隨縮放動態顯示 */
       if(LS.cities){
-        svgEl.select(".city-lg").selectAll(".clb-g").each(function(){
-          var pop=+this.getAttribute("data-pop");
+        svgEl.select(".city-lg").selectAll(".clb-g").each(function(d){
+          var pop=d.pop;
           var show=(k>=8)||(k>=4&&pop>=300000)||(k>=2.5&&pop>=1e6)||(k>=1.5&&pop>=3e6)||(pop>=8e6);
           this.style.display=show?null:"none";
         });
       }
     });
   svgEl.call(zbeh);
+
+  /* ── SVG glow filters：hover=金色微光, sel=金色強光, quiz=橘色強光 ── */
+  var defs=svgEl.append("defs");
+  var _glowBlur={};
+  function mkGlow(id,color,opacity,blur){
+    var f=defs.append("filter").attr("id",id)
+      .attr("x","-35%").attr("y","-35%").attr("width","170%").attr("height","170%");
+    _glowBlur[id]=f.append("feGaussianBlur").attr("in","SourceAlpha").attr("stdDeviation",blur).attr("result","blur");
+    f.append("feFlood").attr("flood-color",color).attr("flood-opacity",opacity).attr("result","c");
+    f.append("feComposite").attr("in","c").attr("in2","blur").attr("operator","in").attr("result","glow");
+    var m=f.append("feMerge");
+    m.append("feMergeNode").attr("in","glow");
+    m.append("feMergeNode").attr("in","SourceGraphic");
+  }
+  mkGlow("glow-hov","#f0d060",0.65,2.5);
+  mkGlow("glow-sel","#f0c840",0.92,4.5);
+  mkGlow("glow-quiz","#ff9040",0.92,5.5);
 
   svgEl.append("rect").attr("width",W).attr("height",H).attr("fill","#183858");
   gEl=svgEl.append("g");
@@ -1212,8 +1019,8 @@ async function initMap(){
         .attr("fill",function(d){return gcf(d.id);});
 
       /* 國家邊界 */
-      tile.append("path").datum(borderMesh).attr("d",pfn).attr("fill","none")
-        .attr("stroke","rgba(255,255,255,.72)").attr("stroke-width",.75)
+      tile.append("path").datum(borderMesh).attr("d",pfn).attr("class","border-mesh")
+        .attr("fill","none").attr("stroke","rgba(255,255,255,.72)").attr("stroke-width",.75)
         .attr("pointer-events","none");
 
       /* 湖泊 */
@@ -1323,8 +1130,7 @@ async function initMap(){
       var area=Math.abs(pfn.area(f)); if(area<3) return;
       var fs=area>3500?13:area>700?11:area>180?9.5:area>50?8.5:7.5;
       var g=lg.append("g").attr("class","lb-g")
-        .attr("data-ox",c[0]).attr("data-oy",c[1]).attr("data-id",+f.id)
-        .attr("data-area",Math.round(area))
+        .datum({ox:c[0],oy:c[1],id:+f.id,area:Math.round(area)})
         .attr("transform","translate("+c[0]+","+c[1]+")");
       g.append("text").attr("class","lb").attr("text-anchor","middle")
         .attr("dy","0.35em").attr("font-size",fs).text(cd[0]);
@@ -1356,7 +1162,7 @@ async function initMap(){
       if(!c||!isFinite(c[0])||!isFinite(c[1])) return;
       var fs=w.size||(w.type==="ocean"?15:w.type==="sea"?10:8);
       wlg.append("g").attr("class","wlb-g")
-        .attr("data-ox",c[0]).attr("data-oy",c[1])
+        .datum({ox:c[0],oy:c[1]})
         .attr("transform","translate("+c[0]+","+c[1]+")")
         .append("text").attr("class","wlbl wlbl-"+w.type)
         .attr("text-anchor","middle").attr("dy","0.35em")
@@ -1476,8 +1282,7 @@ async function initMap(){
         if(!coords||!isFinite(coords[0])||!isFinite(coords[1])) return;
         var pop=f.properties.pop_max||0;
         var g=capLg.append("g").attr("class","clb-g")
-          .attr("data-ox",coords[0]).attr("data-oy",coords[1])
-          .attr("data-pop",pop)
+          .datum({ox:coords[0],oy:coords[1],pop:pop})
           .attr("transform","translate("+coords[0]+","+coords[1]+")")
           .style("display",pop>=1e6?null:"none");
         g.append("text").attr("class","clb")
@@ -1501,37 +1306,6 @@ async function initMap(){
   }
 }
 
-
-/* ══════════ MOBILE PANEL (BOTTOM SHEET) ══════════ */
-function isMob(){return window.innerWidth<=768;}
-
-function openMob(){
-  if(!isMob()) return;
-  document.getElementById("panel").classList.add("mob-open");
-  document.getElementById("mob-overlay").classList.add("show");
-}
-function closeMob(){
-  document.getElementById("panel").classList.remove("mob-open");
-  document.getElementById("mob-overlay").classList.remove("show");
-}
-
-/* Swipe-to-dismiss panel */
-(function(){
-  var el=document.getElementById("panel");
-  var startY=0, dy=0, dragging=false;
-  el.addEventListener("touchstart",function(e){
-    startY=e.touches[0].clientY; dy=0; dragging=true;
-  },{passive:true});
-  el.addEventListener("touchmove",function(e){
-    if(!dragging) return;
-    dy=e.touches[0].clientY-startY;
-    if(dy>0) el.style.transform="translateY("+dy+"px)";
-  },{passive:true});
-  el.addEventListener("touchend",function(){
-    dragging=false; el.style.transform="";
-    if(dy>80) closeMob();
-  },{passive:true});
-})();
 window.addEventListener("load",function(){
   requestAnimationFrame(function(){ requestAnimationFrame(initMap); });
 });
