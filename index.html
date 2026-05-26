@@ -536,10 +536,18 @@ var C = {
   659:["聖克里斯多福及尼維斯","St. Kitts & Nevis","🇰🇳","巴斯特爾",["英語"],"na"],
   662:["聖露西亞","Saint Lucia","🇱🇨","卡斯翠",["英語"],"na"],
   670:["聖文森及格瑞那丁","St. Vincent & Grenadines","🇻🇨","金斯敦",["英語"],"na"],
-  702:["新加坡","Singapore","🇸🇬","新加坡",["英語","馬來語","普通話","泰米爾語"],"asia"]
+  702:["新加坡","Singapore","🇸🇬","新加坡",["英語","馬來語","普通話","泰米爾語"],"asia"],
+  // 歐洲微型國家
+  20: ["安道爾","Andorra","🇦🇩","安道爾城",["加泰羅尼亞語"],"europe"],
+  438:["列支敦士登","Liechtenstein","🇱🇮","瓦都茲",["德語"],"europe"],
+  492:["摩納哥","Monaco","🇲🇨","摩納哥市",["法語"],"europe"],
+  // 亞洲特別行政區
+  446:["澳門","Macao","🇲🇴","澳門",["中文","葡萄牙語"],"asia"]
 };
 
 var RCOL={asia:"#c09060",europe:"#6898b8",africa:"#c8a040",na:"#68aa86",sa:"#509e70",oc:"#ba7860"};
+/* 無 numeric ID 的地理實體（disputed/unrecognized territories）以名稱對應顏色 */
+var NAME_COL={"Kosovo":"#6898b8","Somaliland":"#c8a040","N. Cyprus":"#6898b8","Siachen Glacier":"#c09060"};
 var RLB={all:"全球",asia:"亞洲",europe:"歐洲",africa:"非洲",na:"北美洲",sa:"南美洲",oc:"大洋洲"};
 
 /* ── 圖層狀態 ── */
@@ -576,7 +584,7 @@ var _filterTimer; /* filterList debounce timer */
 /* ── 核心修正：topojson ID 為帶前導零字串，用 +id 轉成整數查表 ── */
 function L(id){ return C[+id]||null; }
 
-function gcf(id){ var d=L(id); return d?(RCOL[d[5]]||"#7a8a90"):"#506070"; }
+function gcf(id,nm){ var d=L(id); return d?(RCOL[d[5]]||"#7a8a90"):(NAME_COL[nm]||"#506070"); }
 
 function rcolor(){
   if(!gEl) return;
@@ -592,7 +600,7 @@ function rcolor(){
       el.attr("fill",cur?"#ff6820":"#243040").attr("opacity",cur?1:0.22);
       el.classed("sel",false).classed("hl",cur).classed("dim",false);
     } else {
-      el.attr("fill",gcf(id)).attr("opacity",null);
+      el.attr("fill",gcf(id,d.properties&&d.properties.name)).attr("opacity",null);
       el.classed("sel",id===S.selId).classed("hl",false);
       var cd=L(id);
       var rDim=hasRegion&&!(cd&&cd[5]===S.region);
@@ -627,13 +635,23 @@ function onCC(id){
 }
 function selFromList(id){ S.selId=+id; rcolor(); zoomTo(+id); showInfo(+id); }
 
+function bestBounds(f){
+  if(!f.geometry||f.geometry.type!=="MultiPolygon") return pfn.bounds(f);
+  var best=null,bA=-1;
+  f.geometry.coordinates.forEach(function(coords){
+    var t={type:"Feature",geometry:{type:"Polygon",coordinates:coords}};
+    var a=Math.abs(pfn.area(t));
+    if(a>bA){bA=a;best=t;}
+  });
+  return best?pfn.bounds(best):pfn.bounds(f);
+}
 function zoomTo(intId){
   if(!S.worldData) return;
   var geoms=S.worldData.objects.countries.geometries;
   var g=geoms.find(function(x){return+x.id===intId;});
   if(!g) return;
   var feat=topojson.feature(S.worldData,g);
-  var bounds=pfn.bounds(feat);
+  var bounds=bestBounds(feat);
   if(!bounds||!isFinite(bounds[0][0])) return;
   var bw=bounds[1][0]-bounds[0][0], bh=bounds[1][1]-bounds[0][1];
   var cx=(bounds[0][0]+bounds[1][0])/2, cy=(bounds[0][1]+bounds[1][1])/2;
@@ -1016,7 +1034,7 @@ async function initMap(){
       /* 國家填色 */
       var cpaths=tile.selectAll(".cp").data(countries.features).join("path")
         .attr("class","country-path cp").attr("d",pfn)
-        .attr("fill",function(d){return gcf(d.id);});
+        .attr("fill",function(d){return gcf(d.id,d.properties&&d.properties.name);});
 
       /* 國家邊界 */
       tile.append("path").datum(borderMesh).attr("d",pfn).attr("class","border-mesh")
