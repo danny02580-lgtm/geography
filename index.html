@@ -563,6 +563,14 @@ function toggleLayer(nm){
   if(nm==="timezone"&&gEl){
     gEl.selectAll(".tile-tz").style("display",LS[nm]?null:"none");
     if(tzHdrG) tzHdrG.style("display",LS[nm]?null:"none");
+    /* 開啟時：tzfill 僅保留邊線（國家本身已換成時區色，不需二次填色）
+       關閉時：tzfill 恢復原本的半透明填色 */
+    gEl.selectAll(".tzfill").attr("fill",LS[nm]?"transparent":function(d){
+      var off=parseFloat(d.properties.name);
+      if(!isFinite(off)) return "transparent";
+      return "hsla("+tzHue(off)+",72%,58%,.36)";
+    });
+    rcolor(); /* 讓國家填色跟著切換 */
   }
   /* 首都標籤在 svgEl */
   if(nm==="cities"&&svgEl) svgEl.select(".city-lg").style("display",LS[nm]?null:"none");
@@ -593,6 +601,13 @@ var _filterTimer; /* filterList debounce timer */
 function L(id){ return C[+id]||null; }
 
 function gcf(id,nm){ var d=L(id); return d?(RCOL[d[5]]||"#7a8a90"):(NAME_COL[nm]||"#506070"); }
+var countryTZ={}; /* {countryId: utcOffset} 預計算，供時區填色使用 */
+function tzHue(off){ return Math.round(((off+12)/26)*315); }
+function tzFill(id){
+  var off=countryTZ[id];
+  if(off==null) return "#2e4055";
+  return "hsl("+tzHue(off)+",62%,48%)";
+}
 
 function rcolor(){
   if(!gEl) return;
@@ -608,7 +623,8 @@ function rcolor(){
       el.attr("fill",cur?"#ff6820":"#243040").attr("opacity",cur?1:0.22);
       el.classed("sel",false).classed("hl",cur).classed("dim",false);
     } else {
-      el.attr("fill",gcf(id,d.properties&&d.properties.name)).attr("opacity",null);
+      var fill=LS.timezone?tzFill(id):gcf(id,d.properties&&d.properties.name);
+      el.attr("fill",fill).attr("opacity",null);
       el.classed("sel",id===S.selId).classed("hl",false);
       var cd=L(id);
       var rDim=hasRegion&&!(cd&&cd[5]===S.region);
@@ -1062,6 +1078,26 @@ async function initMap(){
     var rfc=toFC(riverData), lfc=toFC(lakeData);
     var a1fc=toFC(admin1Data);
     var graticule=d3.geoGraticule()();
+
+    /* ── 預計算每個國家所屬時區 UTC offset（點在多邊形內測試）──
+       後續開啟時區圖層時直接以此換色，避免疊色問題 */
+    if(tzData&&tzData.features){
+      countries.features.forEach(function(f){
+        if(f.id==null) return;
+        var geo=d3.geoCentroid(f);
+        if(!geo||!isFinite(geo[0])) return;
+        for(var i=0;i<tzData.features.length;i++){
+          var tf=tzData.features[i];
+          try{
+            if(d3.geoContains(tf,geo)){
+              var off=parseFloat(tf.properties.name);
+              if(isFinite(off)) countryTZ[f.id]=off;
+              break;
+            }
+          }catch(e){}
+        }
+      });
+    }
 
     
     /* ── 三個統一 master tile（所有圖層都在裡面，一起平移）──
