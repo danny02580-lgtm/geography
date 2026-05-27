@@ -614,9 +614,16 @@ function rcolor(){
   });
   /* 標籤 dim（從 datum 讀 id，避免 getAttribute）*/
   svgEl.select(".lg").selectAll(".lb-g").each(function(d){
+    if(isQ){
+      /* 測驗模式：作答前全隱藏；作答後僅顯示正確國家標籤（讓玩家對照地圖確認）*/
+      d3.select(this).classed("dim",!(S.q.answered&&d.id===S.q.curId));
+      return;
+    }
     var dim=showLabels&&S.selId&&d.id!==S.selId&&S.lview==="list";
     d3.select(this).classed("dim",dim||!showLabels);
   });
+  /* 首都城市標籤：測驗進行中隱藏，避免名稱外洩成為提示 */
+  svgEl.select(".city-lg").style("display",isQ?"none":(LS.cities?null:"none"));
 }
 
 function showTip(e,d){
@@ -884,6 +891,7 @@ function handleAns(selId){
   S.q.answered=true;S.q.total++;
   var ok=selId===S.q.curId;
   if(ok){S.q.correct++;S.q.streak++;}else{S.q.streak=0;}
+  rcolor(); /* 答題後：在地圖上顯示正確國家名稱，讓玩家對照 */
   document.querySelectorAll(".ob").forEach(function(b){
     var bid=+b.dataset.oid;b.disabled=true;
     if(bid===S.q.curId)b.classList.add("ok");
@@ -1105,10 +1113,12 @@ async function initMap(){
           .attr("fill",function(d){
             var off=parseFloat(d.properties.name);
             if(!isFinite(off)) return "transparent";
-            var n=(off+12)/25;
-            return "hsla("+Math.round(240*(1-n))+",70%,58%,.28)";
+            /* 色輪旋轉：UTC-12→色相0（紅）→UTC0→色相148（青）→UTC+14→色相315（粉紫）
+               使用 0-315° 避免首尾撞色，相鄰時區色差最大化 */
+            var h=Math.round(((off+12)/26)*315);
+            return "hsla("+h+",72%,58%,.36)";
           })
-          .attr("stroke","rgba(255,255,255,.1)").attr("stroke-width",.3);
+          .attr("stroke","rgba(255,255,255,.18)").attr("stroke-width",.4);
         /* 每個 UTC offset 標籤：找該 offset 最大的多邊形放標籤 */
         var tzLbls={};
         tzData.features.forEach(function(f){
@@ -1121,11 +1131,19 @@ async function initMap(){
         Object.keys(tzLbls).forEach(function(off){
           var z=tzLbls[off]; var c=z.c;
           if(!c||!isFinite(c[0])||!isFinite(c[1])) return;
-          tzGrp.append("text").attr("transform","translate("+c+")")
-            .attr("text-anchor","middle").attr("font-size",7.5)
-            .attr("fill","rgba(255,215,100,.8)").attr("font-family","monospace")
+          if(z.area<280) return; /* 太小的時區跳過，避免標籤擠疊 */
+          var lbl="UTC"+(+off>=0?"+":"")+off;
+          var lw=lbl.length*5.4+8;
+          /* 深色底背景提升可讀性 */
+          tzGrp.append("rect")
+            .attr("x",c[0]-lw/2).attr("y",c[1]-8.5)
+            .attr("width",lw).attr("height",13)
+            .attr("rx",3).attr("fill","rgba(0,0,0,.58)");
+          tzGrp.append("text").attr("transform","translate("+c[0]+","+(c[1]+2)+")")
+            .attr("text-anchor","middle").attr("font-size",9).attr("font-weight","600")
+            .attr("fill","rgba(255,238,130,1)").attr("font-family","monospace")
             .attr("pointer-events","none")
-            .text("UTC"+(+off>=0?"+":"")+off);
+            .text(lbl);
         });
       }
 
