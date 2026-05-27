@@ -618,16 +618,9 @@ function rcolor(){
   });
   /* 標籤 dim（從 datum 讀 id，避免 getAttribute）*/
   svgEl.select(".lg").selectAll(".lb-g").each(function(d){
-    if(isQ){
-      /* 測驗模式：作答前全隱藏；作答後僅顯示正確國家標籤（讓玩家對照地圖確認）*/
-      d3.select(this).classed("dim",!(S.q.answered&&d.id===S.q.curId));
-      return;
-    }
     var dim=showLabels&&S.selId&&d.id!==S.selId&&S.lview==="list";
     d3.select(this).classed("dim",dim||!showLabels);
   });
-  /* 首都城市標籤：測驗進行中隱藏，避免名稱外洩成為提示 */
-  svgEl.select(".city-lg").style("display",isQ?"none":(LS.cities?null:"none"));
 }
 
 function showTip(e,d){
@@ -704,6 +697,7 @@ function setMode(m){
   document.getElementById("tlearn").classList.toggle("on",m==="learn");
   document.getElementById("tquiz").classList.toggle("on",m==="quiz");
   document.getElementById("rbar").style.display=m==="learn"?"flex":"none";
+  if(m==="learn") restoreLabels(); /* 回到學習模式時還原標籤 */
   rcolor(); resetZoom();
   if(m==="learn") renderLearn(); else renderQSetup();
 }
@@ -842,12 +836,28 @@ function getPool(reg){
   _poolCache[reg]=pool;
   return pool;
 }
-function startQuiz(){S.q.active=true;S.q.correct=0;S.q.total=0;S.q.streak=0;nextQ();}
+function hideQuizLabels(){
+  if(!svgEl) return;
+  svgEl.select(".lg").style("display","none");
+  svgEl.select(".city-lg").style("display","none");
+}
+function restoreLabels(){
+  if(!svgEl) return;
+  svgEl.select(".lg").style("display",showLabels?null:"none");
+  svgEl.select(".city-lg").style("display",LS.cities?null:"none");
+}
+function startQuiz(){
+  S.q.active=true;S.q.correct=0;S.q.total=0;S.q.streak=0;
+  hideQuizLabels();
+  nextQ();
+}
 function quickQuiz(intId){
   setMode("quiz");
   setTimeout(function(){
     var cd=L(intId);S.q.active=true;S.q.correct=0;S.q.total=0;S.q.streak=0;
-    S.q.region=cd?cd[5]:"all";nextQ(intId);
+    S.q.region=cd?cd[5]:"all";
+    hideQuizLabels();
+    nextQ(intId);
   },80);
 }
 function nextQ(fid){
@@ -895,7 +905,6 @@ function handleAns(selId){
   S.q.answered=true;S.q.total++;
   var ok=selId===S.q.curId;
   if(ok){S.q.correct++;S.q.streak++;}else{S.q.streak=0;}
-  rcolor(); /* 答題後：在地圖上顯示正確國家名稱，讓玩家對照 */
   document.querySelectorAll(".ob").forEach(function(b){
     var bid=+b.dataset.oid;b.disabled=true;
     if(bid===S.q.curId)b.classList.add("ok");
@@ -914,7 +923,7 @@ function handleAns(selId){
   fb.insertAdjacentHTML("afterend",'<button class="nxtb" onclick="nextQ()">下一題 →</button>');
 }
 function quitQuiz(){
-  var q=S.q;S.q.active=false;rcolor();resetZoom();
+  var q=S.q;S.q.active=false;restoreLabels();rcolor();resetZoom();
   var pct=q.total>0?Math.round(q.correct/q.total*100):0;
   document.getElementById("panel").innerHTML=
     '<div class="rspanel"><div class="rsico">'+(pct>=80?"🏆":pct>=50?"😊":"💪")+'</div>'
