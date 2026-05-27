@@ -542,7 +542,11 @@ var C = {
   438:["列支敦士登","Liechtenstein","🇱🇮","瓦都茲",["德語"],"europe"],
   492:["摩納哥","Monaco","🇲🇨","摩納哥市",["法語"],"europe"],
   // 亞洲特別行政區
-  446:["澳門","Macao","🇲🇴","澳門",["中文","葡萄牙語"],"asia"]
+  446:["澳門","Macao","🇲🇴","澳門",["中文","葡萄牙語"],"asia"],
+  // 爭議／未被普遍承認地區（負數偽 ID，在 topojson 載入後動態指派）
+  "-1":["科索沃","Kosovo","🇽🇰","普里斯提納",["阿爾巴尼亞語","塞爾維亞語"],"europe"],
+  "-2":["索馬利蘭","Somaliland","🚩","哈爾格薩",["索馬利語"],"africa"],
+  "-3":["北賽普勒斯","Northern Cyprus","🇨🇾","北尼科西亞",["土耳其語"],"europe"]
 };
 
 var RCOL={asia:"#c09060",europe:"#6898b8",africa:"#c8a040",na:"#68aa86",sa:"#509e70",oc:"#ba7860"};
@@ -647,10 +651,18 @@ function bestBounds(f){
 }
 function zoomTo(intId){
   if(!S.worldData) return;
-  var geoms=S.worldData.objects.countries.geometries;
-  var g=geoms.find(function(x){return+x.id===intId;});
-  if(!g) return;
-  var feat=topojson.feature(S.worldData,g);
+  var feat;
+  if(intId<0){
+    /* 偽 ID 地區：直接從已指派 ID 的 feature collection 找 */
+    var fc=S.worldData._cfc; if(!fc) return;
+    feat=fc.features.find(function(f){return f.id===intId;});
+    if(!feat) return;
+  } else {
+    var geoms=S.worldData.objects.countries.geometries;
+    var g=geoms.find(function(x){return+x.id===intId;});
+    if(!g) return;
+    feat=topojson.feature(S.worldData,g);
+  }
   var bounds=bestBounds(feat);
   if(!bounds||!isFinite(bounds[0][0])) return;
   var bw=bounds[1][0]-bounds[0][0], bh=bounds[1][1]-bounds[0][1];
@@ -1002,6 +1014,13 @@ async function initMap(){
     S.worldData=world;
     var countries=topojson.feature(world,world.objects.countries);
     var borderMesh=topojson.mesh(world,world.objects.countries);
+    /* 無 ID 地區指派偽 ID → 使點擊、資訊面板、地圖標籤全部走正常流程 */
+    var _nameId={"Kosovo":-1,"Somaliland":-2,"N. Cyprus":-3};
+    countries.features.forEach(function(f){
+      if(f.id===undefined&&f.properties&&_nameId[f.properties.name]!==undefined)
+        f.id=_nameId[f.properties.name];
+    });
+    S.worldData._cfc=countries;
 
     setStatus("載入附加圖層…");
     var GH="https://raw.githubusercontent.com/nvkelso/natural-earth-vector/master/geojson/";
@@ -1235,7 +1254,7 @@ async function initMap(){
   "Chișinău":"基希訥烏","Chisinau":"基希訥烏",
   "Cairo":"開羅","Algiers":"阿爾及爾","Tunis":"突尼斯",
   "Tripoli":"的黎波里","Rabat":"拉巴特","Casablanca":"卡薩布蘭卡",
-  "Khartoum":"喀土穆",
+  "Khartoum":"喀土穆","Nouakchott":"努瓦克肖特","Hargeisa":"哈爾格薩",
   "Lagos":"拉哥斯","Abuja":"阿布加","Abidjan":"阿比讓","Accra":"阿克拉",
   "Dakar":"達喀爾","Bamako":"巴馬科","Conakry":"科納克里",
   "Freetown":"自由城","Monrovia":"蒙羅維亞",
@@ -1257,7 +1276,7 @@ async function initMap(){
   "Harare":"哈拉雷","Lusaka":"路沙卡","Maputo":"馬布多",
   "Lilongwe":"里朗威","Gaborone":"嘉柏隆里","Windhoek":"溫得和克",
   "Maseru":"馬塞魯","Mbabane":"姆巴班","Port Louis":"路易港",
-  "Washington, D.C.":"華盛頓","Washington":"華盛頓",
+  "Washington, D.C.":"華盛頓","Washington,  D.C.":"華盛頓","Washington":"華盛頓",
   "New York":"紐約","Los Angeles":"洛杉磯","Chicago":"芝加哥",
   "Houston":"休士頓","Dallas":"達拉斯","San Francisco":"舊金山",
   "Miami":"邁阿密","Seattle":"西雅圖","Boston":"波士頓",
