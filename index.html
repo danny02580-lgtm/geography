@@ -276,6 +276,12 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
   font-weight:500;letter-spacing:.02em;
   font-family:"PingFang TC","Microsoft JhengHei","Noto Sans TC",sans-serif;
   pointer-events:none}
+.clb-dot{fill:#f5dfa0;stroke:rgba(8,18,32,.85);stroke-width:1.2;pointer-events:none}
+.ob-key{display:inline-flex;align-items:center;justify-content:center;
+  width:15px;height:15px;border-radius:3px;font-size:9px;font-weight:700;
+  background:rgba(255,255,255,.07);border:1px solid rgba(255,255,255,.1);
+  color:#3a6a88;margin-right:5px;flex-shrink:0;vertical-align:middle;line-height:1}
+.kb-hint{font-size:9px;color:#2a4a5a;text-align:center;padding-top:2px;letter-spacing:.02em}
 
 /* ─ Scrollbar ─ */
 ::-webkit-scrollbar{width:3px}
@@ -556,13 +562,14 @@ var RLB={all:"全球",asia:"亞洲",europe:"歐洲",africa:"非洲",na:"北美�
 
 /* ── 圖層狀態 ── */
 var LS={cities:true,timezone:false};
-var tzHdrG=null; /* 頂端時區 header 群組（固定在 SVG 最上方，不隨 zoom 移動）*/
+var tzHdrG=null,tzLegG=null; /* 頂端時區 header + 底部圖例群組 */
 function toggleLayer(nm){
   LS[nm]=!LS[nm];
   /* 時區層在各 tile 的 .tile-tz 群組 */
   if(nm==="timezone"&&gEl){
     gEl.selectAll(".tile-tz").style("display",LS[nm]?null:"none");
     if(tzHdrG) tzHdrG.style("display",LS[nm]?null:"none");
+    if(tzLegG) tzLegG.style("display",LS[nm]?null:"none");
     /* 開啟時：tzfill 僅保留邊線（國家本身已換成時區色，不需二次填色）
        關閉時：tzfill 恢復原本的半透明填色 */
     gEl.selectAll(".tzfill").attr("fill",LS[nm]?"transparent":function(d){
@@ -642,7 +649,9 @@ function rcolor(){
 function showTip(e,d){
   if(S.mode==="quiz"&&S.q.active) return;
   var cd=L(d.id); if(!cd) return;
-  tipEl.innerHTML=cd[2]+" <strong>"+cd[0]+"</strong> <span style='color:#7a9ab0;font-size:10px'>首都："+cd[3]+"</span>";
+  var off=countryTZ[+d.id];
+  var tzStr=off!=null?' <span style="color:#7ab8d8;font-size:10px">UTC'+(off>=0?"+":"")+off+'</span>':"";
+  tipEl.innerHTML=cd[2]+" <strong>"+cd[0]+"</strong> <span style='color:#7a9ab0;font-size:10px'>首都："+cd[3]+"</span>"+tzStr;
   tipEl.style.opacity="1";
 }
 function mvTip(e){
@@ -799,6 +808,8 @@ function showInfo(intId){
   var backBtn=(S.lview==="list")
     ?'<button class="backb" onclick="goBackList()">← 回到清單</button>':"";
   var langs=d[4].map(function(l){return'<span class="lt">'+l+'</span>';}).join("");
+  var tzOff=countryTZ[intId];
+  var tzRow=tzOff!=null?'<div class="info-row"><div class="info-ico">🕐</div><div><div class="info-lbl">時區</div><div class="info-val">UTC'+(tzOff>=0?"+":"")+tzOff+'</div></div></div>':"";
   document.getElementById("panel").innerHTML=tabsH()
     +'<div class="info">'
     +'<div class="info-hero" style="background:linear-gradient(150deg,'+col+'2e 0%,#1a3050 55%,#111e2e 100%)">'
@@ -811,6 +822,7 @@ function showInfo(intId){
     +'<div class="dvd"></div>'
     +'<div class="info-body">'
     +'<div class="info-row"><div class="info-ico">🏛️</div><div><div class="info-lbl">首都</div><div class="info-val">'+d[3]+'</div></div></div>'
+    +tzRow
     +'<div class="info-row"><div class="info-ico">💬</div><div><div class="info-lbl">官方語言</div><div class="ltags">'+langs+'</div></div></div>'
     +'</div>'
     +'<div class="dvd"></div>'
@@ -902,9 +914,10 @@ function renderQ(){
   var qLbl={name:"認國家名稱",capital:"認首都",flag:"認國旗",lang:"認語言"}[q.qType];
   var pct=q.total>0?Math.round(q.correct/q.total*100):0;
   var strkH=q.streak>=2?'<span class="strk">🔥 '+q.streak+' 連勝</span>':"";
-  var optsH=q.opts.map(function(opt){
+  var optsH=q.opts.map(function(opt,i){
+    var key='<span class="ob-key">'+(i+1)+'</span>';
     return'<button class="ob'+(q.qType==="flag"?" flgo":"")+'" data-oid="'+opt.id
-      +'" onclick="handleAns('+opt.id+')">'+optTxt(opt,q.qType)+'</button>';
+      +'" onclick="handleAns('+opt.id+')">'+key+optTxt(opt,q.qType)+'</button>';
   }).join("");
   document.getElementById("panel").innerHTML=
     '<div class="qhdr"><div class="sc"><span class="scn">'+q.correct+'</span> / '+q.total+'</div>'
@@ -914,7 +927,8 @@ function renderQ(){
     +'<div class="qtxt">'+qTxt+'</div>'
     +'<div class="hint">👆 留意地圖上橘色標示的區域</div>'
     +'<div class="ogrid">'+optsH+'</div>'
-    +'<div id="fb" style="display:none"></div></div>';
+    +'<div id="fb" style="display:none"></div>'
+    +'<div class="kb-hint">⌨ 按 1–4 選擇　答題後按 Space / Enter 繼續</div></div>';
 }
 function handleAns(selId){
   if(S.q.answered) return;
@@ -1410,13 +1424,56 @@ async function initMap(){
         var pop=f.properties.pop_max||0;
         var g=capLg.append("g").attr("class","clb-g")
           .datum({ox:coords[0],oy:coords[1],pop:pop})
-          .attr("transform","translate("+coords[0]+","+coords[1]+")")
-          .style("display",pop>=1e6?null:"none");
+          .attr("transform","translate("+coords[0]+","+coords[1]+")");
+        /* 位置圓點 */
+        g.append("circle").attr("class","clb-dot").attr("r",2);
+        /* 城市名稱（圓點上方）*/
         g.append("text").attr("class","clb")
-          .attr("text-anchor","middle").attr("dy","-4")
+          .attr("text-anchor","middle").attr("dy","-5")
           .attr("font-size",8).text(zhName);
       });
+      /* 初始可見性：交由 zoom handler 邏輯統一管理，避免小首都永遠消失 */
+      var _initK=d3.zoomTransform(svgEl.node()).k;
+      capLg.selectAll(".clb-g").each(function(d){
+        var p=d.pop;
+        this.style.display=((_initK>=8)||(_initK>=4&&p>=3e5)||(_initK>=2.5&&p>=1e6)||(_initK>=1.5&&p>=3e6)||(p>=8e6))?null:"none";
+      });
     }
+
+    /* ── 時區色階圖例（底部，開啟時區圖層時顯示）── */
+    (function(){
+      var legW=220,legH=8,legX=(W-legW)/2,legY=H-38;
+      /* linearGradient */
+      var gd=svgEl.select("defs").append("linearGradient").attr("id","tz-grad")
+        .attr("x1","0%").attr("y1","0%").attr("x2","100%").attr("y2","0%");
+      for(var oi=-12;oi<=14;oi+=2){
+        var pct=Math.round((oi+12)/26*100);
+        gd.append("stop").attr("offset",pct+"%")
+          .attr("stop-color","hsl("+Math.round(((oi+12)/26)*315)+",62%,48%)");
+      }
+      tzLegG=svgEl.append("g").attr("class","tz-leg")
+        .attr("pointer-events","none")
+        .style("display",LS.timezone?null:"none");
+      /* 背景 */
+      tzLegG.append("rect").attr("x",legX-10).attr("y",legY-14)
+        .attr("width",legW+20).attr("height",legH+28)
+        .attr("rx",7).attr("fill","rgba(5,12,24,.86)")
+        .attr("stroke","rgba(255,255,255,.1)").attr("stroke-width",.5);
+      /* 色階條 */
+      tzLegG.append("rect").attr("x",legX).attr("y",legY)
+        .attr("width",legW).attr("height",legH)
+        .attr("rx",3).attr("fill","url(#tz-grad)");
+      /* 刻度與標籤 */
+      [-12,-6,0,6,12].forEach(function(off){
+        var x=legX+(off+12)/26*legW;
+        tzLegG.append("line").attr("x1",x).attr("y1",legY-1).attr("x2",x).attr("y2",legY+legH+1)
+          .attr("stroke","rgba(255,255,255,.35)").attr("stroke-width",.5);
+        tzLegG.append("text").attr("transform","translate("+x+","+(legY+legH+9)+")")
+          .attr("text-anchor","middle").attr("font-size",7.5).attr("font-weight","700")
+          .attr("fill","rgba(255,238,130,.9)").attr("font-family","monospace")
+          .text("UTC"+(off>=0?"+":"")+off);
+      });
+    })();
 
     document.getElementById("ldg").style.display="none";
     updBdg();
@@ -1432,6 +1489,23 @@ async function initMap(){
       +'font-size:12px">重新載入</button></span>';
   }
 }
+
+/* ── 測驗鍵盤快捷鍵：1-4 選答，Space/Enter 繼續 ── */
+document.addEventListener("keydown",function(e){
+  if(S.mode!=="quiz"||!S.q.active) return;
+  if(!S.q.answered){
+    var n=parseInt(e.key);
+    if(n>=1&&n<=4){
+      var btns=document.querySelectorAll(".ob:not(:disabled)");
+      if(btns[n-1]){e.preventDefault();btns[n-1].click();}
+    }
+  } else {
+    if(e.key===" "||e.key==="Enter"){
+      var nxt=document.querySelector(".nxtb");
+      if(nxt){e.preventDefault();nxt.click();}
+    }
+  }
+});
 
 window.addEventListener("load",function(){
   requestAnimationFrame(function(){ requestAnimationFrame(initMap); });
