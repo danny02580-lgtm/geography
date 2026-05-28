@@ -692,19 +692,38 @@ function zoomTo(intId){
     if(!g) return;
     feat=topojson.feature(S.worldData,g);
   }
-  var bounds=bestBounds(feat);
-  if(!bounds||!isFinite(bounds[0][0])) return;
-  var bw=bounds[1][0]-bounds[0][0], bh=bounds[1][1]-bounds[0][1];
-  var cx=(bounds[0][0]+bounds[1][0])/2, cy=(bounds[0][1]+bounds[1][1])/2;
-  var sc=Math.max(1.0, Math.min(40,0.78/Math.max(bw/W,bh/H)));
+  /* 縮放比例：用完整邊界（全部多邊形）計算，避免俄羅斯/格陵蘭等超大國家過度放大 */
+  var fullBounds=pfn.bounds(feat);
+  if(!fullBounds||!isFinite(fullBounds[0][0])) return;
+  var bw=fullBounds[1][0]-fullBounds[0][0], bh=fullBounds[1][1]-fullBounds[0][1];
+  var sc=Math.max(1.0, Math.min(40, 0.85/Math.max(bw/W, bh/H)));
+
+  /* 中心點：MultiPolygon 取面積最大子多邊形的 centroid（修正俄羅斯偏移） */
+  var cx, cy;
+  if(feat.geometry && feat.geometry.type==="MultiPolygon"){
+    var mainF=null, bA=-1;
+    feat.geometry.coordinates.forEach(function(coords){
+      var t={type:"Feature",geometry:{type:"Polygon",coordinates:coords}};
+      var a=Math.abs(pfn.area(t));
+      if(a>bA){bA=a; mainF=t;}
+    });
+    if(mainF){var ctr=pfn.centroid(mainF); if(isFinite(ctr[0])){cx=ctr[0]; cy=ctr[1];}}
+  }
+  if(cx==null){cx=(fullBounds[0][0]+fullBounds[1][0])/2; cy=(fullBounds[0][1]+fullBounds[1][1])/2;}
+
   /* 找最近的世界副本：依據目前螢幕中心位置決定跳往哪個副本
      避免在左右滑動後跳回原始世界（0~W 投影座標）              */
   var curT=d3.zoomTransform(svgEl.node());
   var viewCx=(W/2-curT.x)/curT.k;
   var n=Math.round((viewCx-cx)/W);
   var adjCx=cx+n*W;
+
+  /* 預先夾住 ty，避免超出 translateExtent 導致垂直出框 */
+  var ty=H/2-sc*cy;
+  ty=Math.max(H-sc*H*1.3, Math.min(sc*H*0.3, ty));
+
   svgEl.transition().duration(600)
-    .call(zbeh.transform,d3.zoomIdentity.translate(W/2-sc*adjCx,H/2-sc*cy).scale(sc));
+    .call(zbeh.transform,d3.zoomIdentity.translate(W/2-sc*adjCx, ty).scale(sc));
 }
 
 function resetZoom(){
