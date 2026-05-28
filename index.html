@@ -283,6 +283,17 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
   color:#3a6a88;margin-right:5px;flex-shrink:0;vertical-align:middle;line-height:1}
 .kb-hint{font-size:9px;color:#2a4a5a;text-align:center;padding-top:2px;letter-spacing:.02em}
 
+/* ─ Language legend panel ─ */
+#lang-leg-panel{position:absolute;bottom:12px;left:50%;transform:translateX(-50%);z-index:40;
+  background:rgba(8,16,28,.93);border:1px solid rgba(255,255,255,.14);
+  border-radius:11px;padding:10px 14px;backdrop-filter:blur(14px);
+  display:none;pointer-events:none;box-shadow:0 4px 18px rgba(0,0,0,.55);
+  min-width:300px}
+.ll-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px 14px}
+.ll-item{display:flex;align-items:center;gap:6px}
+.ll-sw{width:14px;height:12px;border-radius:3px;flex-shrink:0}
+.ll-nm{font-size:10.5px;color:rgba(210,225,240,.88);white-space:nowrap}
+
 /* ─ Search bar ─ */
 #srch-wrap{position:absolute;top:12px;right:12px;z-index:45;width:220px}
 .srch-inp{width:100%;padding:8px 12px 8px 32px;border-radius:9px;
@@ -351,7 +362,6 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
       <button class="lbtn" data-layer="timezone" onclick="toggleLayer('timezone')">🕐 UTC 時區</button>
       <button class="lbtn" data-layer="lang" onclick="toggleLayer('lang')">💬 語言分布</button>
       <button class="lbtn" data-layer="pop" onclick="toggleLayer('pop')">👥 人口熱力</button>
-      <button class="lbtn" data-layer="area" onclick="toggleLayer('area')">📐 面積熱力</button>
     </div>
     <div id="srch-wrap">
       <span class="srch-ico">🔍</span>
@@ -359,6 +369,7 @@ header{display:flex;align-items:center;justify-content:space-between;padding:0 2
         id="srch-inp" oninput="onSrch(this.value)" onblur="hideSrch()" onfocus="onSrch(this.value)">
       <div class="srch-drop" id="srch-drop"></div>
     </div>
+    <div id="lang-leg-panel"><div class="ll-grid" id="ll-grid"></div></div>
     <div id="minimap"></div>
     <div class="ldg" id="ldg"><div class="spin"></div><span>載入地圖資料…</span></div>
   </div>
@@ -665,8 +676,6 @@ var LANG_FAM_COL={
   "烏拉爾":"#7090c0","其他印歐":"#90a8e0","波羅的":"#8090d0","高加索":"#c07050",
   "庫希特":"#c08830","班圖":"#a06030","其他":"#607080"
 };
-var countryAreas={}; /* {id: geoArea in steradians}，initMap 後計算 */
-
 function getCountryLangFam(id){
   var cd=L(id); if(!cd) return "其他";
   var langs=cd[4];
@@ -675,52 +684,50 @@ function getCountryLangFam(id){
 }
 function popFill(id){
   var p=CPOP[id]; if(p==null) return "#2e4055";
-  var t=Math.max(0,Math.min(1,(Math.log10(p)+1)/4.5)); /* log10: -1(0.1M) to 3.5(3B) */
+  var t=Math.max(0,Math.min(1,(Math.log10(p)+1)/4.5));
   var h=Math.round(t*80); var l=Math.round(25+t*35);
   return "hsl("+h+",70%,"+l+"%)";
 }
-function areaFill(id){
-  var a=countryAreas[id]; if(a==null) return "#2e4055";
-  var t=Math.max(0,Math.min(1,(Math.log10(a*1e8)+1)/5)); /* normalise steradian range */
-  var h=Math.round(200-t*140); var l=Math.round(25+t*35);
-  return "hsl("+h+",65%,"+l+"%)";
-}
 
 /* ── 圖層狀態 ── */
-var LS={cities:true,timezone:false,lang:false,pop:false,area:false};
-var tzHdrG=null,tzLegG=null; /* 頂端時區 header + 底部圖例群組 */
-var langLegG=null,popLegG=null,areaLegG=null;
+var LS={cities:true,timezone:false,lang:false,pop:false};
+var tzHdrG=null,tzLegG=null;
+var popLegG=null;
+
+/* 時區層開/關的硬體配件一次清乾淨 */
+function _tzSync(on){
+  if(!gEl) return;
+  gEl.selectAll(".tile-tz").style("display",on?null:"none");
+  if(tzHdrG) tzHdrG.style("display",on?null:"none");
+  if(tzLegG) tzLegG.style("display",on?null:"none");
+  gEl.selectAll(".tzfill").attr("fill",on?"transparent":function(d){
+    var off=parseFloat(d.properties.name);
+    if(!isFinite(off)) return "transparent";
+    return "hsla("+tzHue(off)+",72%,58%,.36)";
+  });
+}
 function toggleLayer(nm){
-  /* 熱力/語言層互斥：開一個要關其他著色層 */
-  var colorLayers=["timezone","lang","pop","area"];
+  /* 著色層互斥：開一個先把其他全關並做清理 */
+  var colorLayers=["timezone","lang","pop"];
   if(colorLayers.indexOf(nm)>=0&&!LS[nm]){
     colorLayers.forEach(function(n){
       if(n!==nm&&LS[n]){
         LS[n]=false;
-        document.querySelectorAll("[data-layer='"+n+"']").forEach(function(b){b.classList.toggle("on",false);});
+        if(n==="timezone") _tzSync(false);
+        if(n==="lang"){ var ll=document.getElementById("lang-leg-panel"); if(ll) ll.style.display="none"; }
+        if(n==="pop"&&popLegG) popLegG.style("display","none");
+        document.querySelectorAll("[data-layer='"+n+"']").forEach(function(b){b.classList.remove("on");});
       }
     });
   }
   LS[nm]=!LS[nm];
-  /* 時區層在各 tile 的 .tile-tz 群組 */
-  if(nm==="timezone"&&gEl){
-    gEl.selectAll(".tile-tz").style("display",LS[nm]?null:"none");
-    if(tzHdrG) tzHdrG.style("display",LS[nm]?null:"none");
-    if(tzLegG) tzLegG.style("display",LS[nm]?null:"none");
-    gEl.selectAll(".tzfill").attr("fill",LS[nm]?"transparent":function(d){
-      var off=parseFloat(d.properties.name);
-      if(!isFinite(off)) return "transparent";
-      return "hsla("+tzHue(off)+",72%,58%,.36)";
-    });
-    rcolor();
+  if(nm==="timezone"){ _tzSync(LS[nm]); rcolor(); }
+  if(nm==="lang"||nm==="pop"){
+    var ll=document.getElementById("lang-leg-panel");
+    if(nm==="lang"&&ll) ll.style.display=LS.lang?"block":"none";
+    if(nm==="pop"&&popLegG) popLegG.style("display",LS.pop?null:"none");
+    if(gEl) rcolor();
   }
-  /* 語言/人口/面積層：只需 rcolor 重繪 */
-  if((nm==="lang"||nm==="pop"||nm==="area")&&gEl) rcolor();
-  /* 語言圖例 */
-  if(langLegG) langLegG.style("display",LS.lang?null:"none");
-  if(popLegG)  popLegG.style("display",LS.pop?null:"none");
-  if(areaLegG) areaLegG.style("display",LS.area?null:"none");
-  /* 首都標籤在 svgEl */
   if(nm==="cities"&&svgEl) svgEl.select(".city-lg").style("display",LS[nm]?null:"none");
   document.querySelectorAll("[data-layer='"+nm+"']").forEach(function(b){b.classList.toggle("on",LS[nm]);});
 }
@@ -772,7 +779,7 @@ function rcolor(){
       el.attr("fill",cur?"#ff6820":"#243040").attr("opacity",cur?1:0.22);
       el.classed("sel",false).classed("hl",cur).classed("dim",false);
     } else {
-      var fill=LS.timezone?tzFill(id):LS.lang?(LANG_FAM_COL[getCountryLangFam(id)]||"#607080"):LS.pop?popFill(id):LS.area?areaFill(id):gcf(id,d.properties&&d.properties.name);
+      var fill=LS.timezone?tzFill(id):LS.lang?(LANG_FAM_COL[getCountryLangFam(id)]||"#607080"):LS.pop?popFill(id):gcf(id,d.properties&&d.properties.name);
       el.attr("fill",fill).attr("opacity",null);
       el.classed("sel",id===S.selId).classed("hl",false);
       var cd=L(id);
@@ -1161,7 +1168,7 @@ async function initMap(){
         var vpX=(0-tx)/k; var vpY=(0-ty)/k;
         var normX=((vpX%W)+W)%W;
         var mmX=normX*mmW/W, mmY=vpY*mmH/H;
-        var mmVW=Math.min(mmW,mmW/k), mmVH=mmH/k;
+        var mmVW=Math.max(14,Math.min(mmW,mmW/k)), mmVH=Math.max(7,mmH/k);
         mmRect.attr("x",mmX).attr("y",mmY).attr("width",mmVW).attr("height",mmVH);
       }
       /* 光暈 stdDeviation 反比縮放，保持恆定螢幕像素大小 */
@@ -1186,6 +1193,14 @@ async function initMap(){
       repos(svgEl.select(".lg").selectAll(".lb-g"));
       repos(svgEl.select(".wlg").selectAll(".wlb-g"));
       repos(svgEl.select(".city-lg").selectAll(".clb-g"));
+      /* 字體隨縮放放大：sqrt(k) 讓大縮放時文字清晰但不爆版 */
+      var sqK=Math.sqrt(k);
+      svgEl.select(".lg").selectAll(".lb-g").each(function(d){
+        d3.select(this).select("text").attr("font-size",Math.min(30,d.fs*sqK));
+      });
+      if(LS.cities){
+        svgEl.select(".city-lg").selectAll(".clb-g text").attr("font-size",Math.min(16,8*sqK));
+      }
       /* 時區 header：x 隨縮放/平移動，y 固定在頂端 */
       if(tzHdrG) tzHdrG.selectAll(".tz-hdr-lbl").attr("transform",function(d){
         var px=k*d.ox+tx;
@@ -1290,13 +1305,6 @@ async function initMap(){
         }
       });
     }
-
-    /* ── 預計算每個國家地理面積（steradians）── */
-    countries.features.forEach(function(f){
-      if(f.id==null) return;
-      var a=d3.geoArea(f);
-      if(isFinite(a)) countryAreas[f.id]=a;
-    });
 
     /* ── 三個統一 master tile（所有圖層都在裡面，一起平移）──
        這樣河流/湖泊/行政邊界/網格都能正確跟隨無限滾動          */
@@ -1455,7 +1463,7 @@ async function initMap(){
       var area=Math.abs(pfn.area(f)); if(area<3) return;
       var fs=area>3500?13:area>700?11:area>180?9.5:area>50?8.5:7.5;
       var g=lg.append("g").attr("class","lb-g")
-        .datum({ox:c[0],oy:c[1],id:+f.id,area:Math.round(area)})
+        .datum({ox:c[0],oy:c[1],id:+f.id,area:Math.round(area),fs:fs})
         .attr("transform","translate("+c[0]+","+c[1]+")");
       g.append("text").attr("class","lb").attr("text-anchor","middle")
         .attr("dy","0.35em").attr("font-size",fs).text(cd[0]);
@@ -1659,27 +1667,13 @@ async function initMap(){
       });
     })();
 
-    /* ── 語言圖例（右側垂直色塊，開啟語言層時顯示）── */
+    /* ── 語言圖例（HTML panel，4 欄網格，清晰可讀）── */
     (function(){
-      var fams=Object.keys(LANG_FAM_COL);
-      var cols=fams.length,bH=12,bW=14,gap=4;
-      var totalW=cols*(bW+gap)-gap;
-      var legX=(W-totalW)/2,legY=H-42;
-      langLegG=svgEl.append("g").attr("class","lang-leg")
-        .attr("pointer-events","none").style("display","none");
-      langLegG.append("rect").attr("x",legX-10).attr("y",legY-14)
-        .attr("width",totalW+20).attr("height",bH+28)
-        .attr("rx",7).attr("fill","rgba(5,12,24,.86)")
-        .attr("stroke","rgba(255,255,255,.1)").attr("stroke-width",.5);
-      fams.forEach(function(fam,i){
-        var x=legX+i*(bW+gap);
-        langLegG.append("rect").attr("x",x).attr("y",legY)
-          .attr("width",bW).attr("height",bH).attr("rx",2)
-          .attr("fill",LANG_FAM_COL[fam]);
-        langLegG.append("text").attr("transform","translate("+(x+bW/2)+","+(legY+bH+8)+")")
-          .attr("text-anchor","middle").attr("font-size",6.5).attr("fill","rgba(200,210,220,.75)")
-          .text(fam.length>4?fam.slice(0,4):fam);
-      });
+      var grid=document.getElementById("ll-grid");
+      if(!grid) return;
+      grid.innerHTML=Object.entries(LANG_FAM_COL).map(function(e){
+        return '<div class="ll-item"><div class="ll-sw" style="background:'+e[1]+'"></div><span class="ll-nm">'+e[0]+'</span></div>';
+      }).join("");
     })();
 
     /* ── 人口/面積圖例（共用漸層條）── */
@@ -1715,9 +1709,6 @@ async function initMap(){
       }
       popLegG=mkHeatLeg("pop-grad","pop-leg",0,80,[
         {t:0,txt:"<1M"},{t:0.33,txt:"1M"},{t:0.55,txt:"10M"},{t:0.75,txt:"100M"},{t:1,txt:"1B+"}
-      ]);
-      areaLegG=mkHeatLeg("area-grad","area-leg",200,60,[
-        {t:0,txt:"微型"},{t:0.3,txt:"小國"},{t:0.6,txt:"中等"},{t:0.85,txt:"大國"},{t:1,txt:"超大"}
       ]);
     })();
 
