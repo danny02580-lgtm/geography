@@ -728,7 +728,10 @@ function toggleLayer(nm){
     if(nm==="pop"&&popLegG) popLegG.style("display",LS.pop?null:"none");
     if(gEl) rcolor();
   }
-  if(nm==="cities"&&svgEl) svgEl.select(".city-lg").style("display",LS[nm]?null:"none");
+  if(nm==="cities"&&svgEl){
+    svgEl.select(".city-lg").style("display",LS[nm]?null:"none");
+    if(LS[nm]){ var t=d3.zoomTransform(svgEl.node()); updateLabels(t.k,t.x,t.y); }
+  }
   document.querySelectorAll("[data-layer='"+nm+"']").forEach(function(b){b.classList.toggle("on",LS[nm]);});
 }
 /* 各大洲：中心點 + 縮放值（避免 Mercator 高緯度失真導致計算錯誤）*/
@@ -1210,14 +1213,6 @@ async function initMap(){
       /* 防碰撞重算（debounce：停止 80ms 後才跑，避免動畫中頻繁計算）*/
       clearTimeout(_lblTimer);
       _lblTimer=setTimeout(function(){updateLabels(k,tx,ty);},80);
-      /* 首都標籤隨縮放動態顯示（population 門檻）*/
-      if(LS.cities){
-        svgEl.select(".city-lg").selectAll(".clb-g").each(function(d){
-          var pop=d.pop;
-          var show=(k>=8)||(k>=4&&pop>=300000)||(k>=2.5&&pop>=1e6)||(k>=1.5&&pop>=3e6)||(pop>=8e6);
-          this.style.display=show?null:"none";
-        });
-      }
       /* 時區 header：x 隨縮放/平移動，y 固定在頂端 */
       if(tzHdrG) tzHdrG.selectAll(".tz-hdr-lbl").attr("transform",function(d){
         var px=k*d.ox+tx;
@@ -1618,7 +1613,7 @@ async function initMap(){
         if(!coords||!isFinite(coords[0])||!isFinite(coords[1])) return;
         var pop=f.properties.pop_max||0;
         var g=capLg.append("g").attr("class","clb-g")
-          .datum({ox:coords[0],oy:coords[1],pop:pop})
+          .datum({ox:coords[0],oy:coords[1],pop:pop,txtC:zhName.length})
           .attr("transform","translate("+coords[0]+","+coords[1]+")");
         /* 位置圓點 */
         g.append("circle").attr("class","clb-dot").attr("r",2);
@@ -1764,36 +1759,60 @@ async function initMap(){
    4. 想佔的位置已被更大的國家佔走就隱藏，等再縮近一點才出現
    ─────────────────────────────────────────────────────────────── */
 function updateLabels(k,tx,ty){
-  if(!svgEl||!showLabels) return;
+  if(!svgEl) return;
   var kW=k*W, sqK=Math.sqrt(k);
-  var placed=[];
   var candidates=[];
-  svgEl.select(".lg").selectAll(".lb-g").each(function(d){
-    var a=d.area||0;
-    /* 粗篩：這個縮放層級根本不需要顯示的國家直接隱藏 */
-    var eligible=k>=6||(k>=3&&a>30)||(k>=1.5&&a>150)||(k>=0.9&&a>600)||a>2000;
-    if(!eligible){this.style.display="none";return;}
-    var fs=Math.min(30,d.fs*sqK);
-    var nc=d.txtC||4;
-    var tw=nc*fs*0.9+8; /* CJK 字元約 0.9em 寬，加 8px padding */
-    var th=fs*1.4;
-    /* 螢幕座標（含水平 tile 環繞）*/
-    var px=k*d.ox+tx;
-    while(px>W/2+kW/2) px-=kW;
-    while(px<W/2-kW/2) px+=kW;
-    var py=k*d.oy+ty;
-    /* 完全離開畫面的直接隱藏 */
-    if(px+tw/2<-30||px-tw/2>W+30||py+th/2<-20||py-th/2>H+20){
-      this.style.display="none";return;
-    }
-    candidates.push({el:this,priority:a,x1:px-tw/2,y1:py-th/2,x2:px+tw/2,y2:py+th/2});
-  });
-  /* 面積大 → 優先顯示 */
+
+  /* ── 國名標籤（優先度 = area + 1e6，永遠高於首都標籤）── */
+  if(showLabels){
+    svgEl.select(".lg").selectAll(".lb-g").each(function(d){
+      var a=d.area||0;
+      var eligible=k>=6||(k>=3&&a>30)||(k>=1.5&&a>150)||(k>=0.9&&a>600)||a>2000;
+      if(!eligible){this.style.display="none";return;}
+      var fs=Math.min(30,d.fs*sqK);
+      var tw=(d.txtC||4)*fs*0.9+8;
+      var th=fs*1.4;
+      var px=k*d.ox+tx;
+      while(px>W/2+kW/2) px-=kW;
+      while(px<W/2-kW/2) px+=kW;
+      var py=k*d.oy+ty;
+      if(px+tw/2<-30||px-tw/2>W+30||py+th/2<-20||py-th/2>H+20){
+        this.style.display="none";return;
+      }
+      candidates.push({el:this,priority:a+1e6,
+        x1:px-tw/2,y1:py-th/2,x2:px+tw/2,y2:py+th/2});
+    });
+  }
+
+  /* ── 首都標籤（優先度 = log10(pop)*60 ≈ 50~480，低於所有國名）── */
+  if(LS.cities){
+    svgEl.select(".city-lg").selectAll(".clb-g").each(function(d){
+      var pop=d.pop;
+      var eligible=(k>=8)||(k>=4&&pop>=3e5)||(k>=2.5&&pop>=1e6)||(k>=1.5&&pop>=3e6)||(pop>=8e6);
+      if(!eligible){this.style.display="none";return;}
+      var fs=Math.min(16,8*sqK);
+      var tw=(d.txtC||3)*fs*0.9+6;
+      var px=k*d.ox+tx;
+      while(px>W/2+kW/2) px-=kW;
+      while(px<W/2-kW/2) px+=kW;
+      var py=k*d.oy+ty;
+      /* 文字在圓點上方（dy=-5），bbox 涵蓋文字 + 圓點 */
+      var y1=py-fs-8, y2=py+4;
+      if(px+tw/2<-30||px-tw/2>W+30||y2<-20||y1>H+20){
+        this.style.display="none";return;
+      }
+      candidates.push({el:this,priority:Math.log10(pop+1)*60,
+        x1:px-tw/2,y1:y1,x2:px+tw/2,y2:y2});
+    });
+  }
+
+  /* 統一排序後貪婪佔位 */
   candidates.sort(function(a,b){return b.priority-a.priority;});
+  var placed=[];
+  var gap=5;
   candidates.forEach(function(c){
-    var gap=5; /* 標籤間最小像素間距 */
     var clash=placed.some(function(p){
-      return c.x1-gap<p.x2 && c.x2+gap>p.x1 && c.y1-gap<p.y2 && c.y2+gap>p.y1;
+      return c.x1-gap<p.x2&&c.x2+gap>p.x1&&c.y1-gap<p.y2&&c.y2+gap>p.y1;
     });
     if(!clash){c.el.style.display=null;placed.push(c);}
     else c.el.style.display="none";
