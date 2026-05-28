@@ -821,16 +821,7 @@ function onCC(id){
 }
 function selFromList(id){ S.selId=+id; rcolor(); zoomTo(+id); showInfo(+id); }
 
-function bestBounds(f){
-  if(!f.geometry||f.geometry.type!=="MultiPolygon") return pfn.bounds(f);
-  var best=null,bA=-1;
-  f.geometry.coordinates.forEach(function(coords){
-    var t={type:"Feature",geometry:{type:"Polygon",coordinates:coords}};
-    var a=Math.abs(pfn.area(t));
-    if(a>bA){bA=a;best=t;}
-  });
-  return best?pfn.bounds(best):pfn.bounds(f);
-}
+
 function zoomTo(intId){
   if(!S.worldData) return;
   var feat;
@@ -895,6 +886,7 @@ function toggleLabels(){
 /* ── 模式與地區 ── */
 function setMode(m){
   S.mode=m; S.selId=null; S.q.active=false;
+  clearTimeout(_filterTimer); /* 避免切換模式後 filterList timer 試圖更新已消失的 #clist */
   document.getElementById("tlearn").classList.toggle("on",m==="learn");
   document.getElementById("tquiz").classList.toggle("on",m==="quiz");
   document.getElementById("rbar").style.display=m==="learn"?"flex":"none";
@@ -1142,10 +1134,29 @@ function quitQuiz(){
     +'</div></div>';
 }
 
+/* ── 標籤位置環繞輔助（定義在 initMap 外，避免每個 zoom 事件重複 allocate）── */
+function reposLabels(k,tx,ty,kW){
+  function repos(sel){
+    sel.attr("transform",function(d){
+      var px=k*d.ox+tx,py=k*d.oy+ty;
+      while(px>W/2+kW/2) px-=kW;
+      while(px<W/2-kW/2) px+=kW;
+      return "translate("+px+","+py+")";
+    });
+  }
+  repos(svgEl.select(".lg").selectAll(".lb-g"));
+  repos(svgEl.select(".wlg").selectAll(".wlb-g"));
+  repos(svgEl.select(".city-lg").selectAll(".clb-g"));
+}
+
 /* ── 地圖初始化 ── */
 async function initMap(){
   var wrap=document.getElementById("mwrap");
   W=wrap.clientWidth||800; H=wrap.clientHeight||500;
+  /* 重試時先清空 SVG 及全域狀態，避免元素重複疊加 */
+  d3.select("#msvg").selectAll("*").remove();
+  tileRefs=[]; tileOff=[]; mmRect=null; oceanRect=null;
+  tzHdrG=null; tzLegG=null; popLegG=null;
   svgEl=d3.select("#msvg");
   tipEl=document.getElementById("tip");
   mwrapEl=wrap;
@@ -1190,17 +1201,8 @@ async function initMap(){
         tileRefs[ti].attr("transform","translate("+tileOff[ti]+",0)");
       }
       /* 標籤環繞：帶到最接近螢幕中央（座標從 datum 讀取，省去每幀 getAttribute）*/
-      function repos(sel){
-        sel.attr("transform",function(d){
-          var px=k*d.ox+tx,py=k*d.oy+ty;
-          while(px>W/2+kW/2) px-=kW;
-          while(px<W/2-kW/2) px+=kW;
-          return "translate("+px+","+py+")";
-        });
-      }
-      repos(svgEl.select(".lg").selectAll(".lb-g"));
-      repos(svgEl.select(".wlg").selectAll(".wlb-g"));
-      repos(svgEl.select(".city-lg").selectAll(".clb-g"));
+      reposLabels(k,tx,ty,kW);
+      /* reposLabels 定義在 initMap 外層（避免每幀重新建立 function 物件）*/
       /* 字體隨縮放放大（只更新可見元素，避免每幀走整棵 DOM）*/
       var sqK=Math.sqrt(k);
       svgEl.select(".lg").selectAll(".lb-g").each(function(d){
@@ -1570,7 +1572,7 @@ async function initMap(){
   "Harare":"哈拉雷","Lusaka":"路沙卡","Maputo":"馬布多",
   "Lilongwe":"里朗威","Gaborone":"嘉柏隆里","Windhoek":"溫得和克",
   "Maseru":"馬塞魯","Mbabane":"姆巴班","Port Louis":"路易港",
-  "Washington, D.C.":"華盛頓","Washington,  D.C.":"華盛頓","Washington":"華盛頓",
+  "Washington, D.C.":"華盛頓","Washington":"華盛頓",
   "New York":"紐約","Los Angeles":"洛杉磯","Chicago":"芝加哥",
   "Houston":"休士頓","Dallas":"達拉斯","San Francisco":"舊金山",
   "Miami":"邁阿密","Seattle":"西雅圖","Boston":"波士頓",
